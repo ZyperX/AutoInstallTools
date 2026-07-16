@@ -1,0 +1,10 @@
+[init]
+    defaultBranch = main
+[pull]
+    rebase = false
+[fetch]
+    prune = true
+[rerere]
+    enabled = true
+[core]
+    editor = vim

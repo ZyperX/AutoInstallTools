@@ -10,4 +10,5 @@ github_install_latest docker/compose docker-compose "$HOME/.docker/cli-plugins/d
 for repo in jesseduffield/lazydocker wagoodman/dive aquasecurity/trivy anchore/syft anchore/grype; do
   github_install_latest "$repo" || true
 done
+# shellcheck disable=SC2016  # $USER is meant to appear literally for the user to run
 warn 'Add your user to the docker group manually if desired: sudo usermod -aG docker $USER (then sign out/in).'

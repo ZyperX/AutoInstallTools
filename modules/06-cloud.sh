@@ -8,7 +8,9 @@ log 'Installing cloud and Kubernetes clients'
 install_awscli_v2() {
   command -v aws >/dev/null 2>&1 && { ok 'aws already installed; skipping'; return 0; }
   if dryrun; then would 'install AWS CLI v2 from awscli.amazonaws.com'; return 0; fi
-  command -v curl >/dev/null && command -v unzip >/dev/null || { record_failure 'awscli' 'curl and unzip are required'; return 0; }
+  if ! { command -v curl >/dev/null && command -v unzip >/dev/null; }; then
+    record_failure 'awscli' 'curl and unzip are required'; return 0
+  fi
   local tmp; tmp=$(mktemp -d); trap 'rm -rf -- "$tmp"' RETURN
   retry curl -fL --retry 3 -o "$tmp/awscliv2.zip" "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" \
     || { record_failure 'awscli' 'download failed'; return 0; }

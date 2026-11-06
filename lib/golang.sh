@@ -35,8 +35,9 @@ install_go_toolchain() {
   local arch
   arch=$(_go_arch) || { record_failure 'go' "unsupported CPU architecture $(uname -m)"; return 0; }
 
-  command -v curl >/dev/null && command -v jq >/dev/null || {
-    record_failure 'go' 'curl and jq are required to install Go'; return 0; }
+  if ! { command -v curl >/dev/null && command -v jq >/dev/null; }; then
+    record_failure 'go' 'curl and jq are required to install Go'; return 0
+  fi
 
   # go.dev publishes a machine-readable index with per-file sha256 checksums.
   local index file sha
@@ -66,7 +67,8 @@ install_go_toolchain() {
 }
 
 go_install() {
-  local package=$1 binary=${2:-${package##*/}}
+  local package=$1
+  local binary=${2:-${package##*/}}
   command -v "$binary" >/dev/null 2>&1 && { ok "$binary already installed; skipping"; return 0; }
   if dryrun; then would "go install $package@latest"; return 0; fi
   command -v go >/dev/null || { record_failure "$binary" 'Go is unavailable'; return 0; }

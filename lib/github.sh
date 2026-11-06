@@ -7,6 +7,7 @@
 # verifies the download against an upstream checksum when one is published (B5).
 
 # Release tools refreshed by update.sh.
+# shellcheck disable=SC2034  # consumed by update.sh, which sources this file
 GITHUB_UPDATABLE=(
   "sharkdp/bat" "sharkdp/fd" "eza-community/eza" "mikefarah/yq" "junegunn/fzf"
   "muesli/duf" "jesseduffield/lazydocker" "wagoodman/dive" "aquasecurity/trivy"
@@ -38,8 +39,9 @@ github_install_latest() (
   if dryrun; then would "install $binname from the latest $repo release to $dest"; return 0; fi
 
   inc=$(_gh_arch_regex) || { record_failure "$binname" "unsupported CPU architecture $(uname -m)"; return 0; }
-  command -v curl >/dev/null && command -v jq >/dev/null || {
-    record_failure "$binname" 'curl and jq are required for GitHub releases'; return 0; }
+  if ! { command -v curl >/dev/null && command -v jq >/dev/null; }; then
+    record_failure "$binname" 'curl and jq are required for GitHub releases'; return 0
+  fi
 
   json=$(retry curl -fsSL "https://api.github.com/repos/$repo/releases/latest") || {
     record_failure "$binname" 'could not query the GitHub release API'; return 0; }

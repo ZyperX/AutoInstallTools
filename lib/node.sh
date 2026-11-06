@@ -20,6 +20,8 @@ install_node_lts() (
   rm -f -- "$setup"
   apt_install nodejs
   major="$(node_major || true)"
-  [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 22 )) || { record_failure 'nodejs' 'Node.js >=22 was not installed successfully'; return 0; }
+  if ! { [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 22 )); }; then
+    record_failure 'nodejs' 'Node.js >=22 was not installed successfully'; return 0
+  fi
   ok "Installed Node.js $(node --version)"
 )

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pentest Bootstrap: Linux/Ubuntu + WSL workstation provisioning.
+# AutoInstallTools: Linux/Ubuntu + WSL AppSec workstation provisioning.
 set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -19,7 +19,7 @@ export PROFILE DRY_RUN
 require_linux; init_paths; acquire_lock
 trap release_lock EXIT
 begin_failure_report
-log "Pentest Bootstrap profile: $PROFILE"
+log "AutoInstallTools profile: $PROFILE"
 confirm_or_exit
 
 for module in "$ROOT"/modules/*.sh; do

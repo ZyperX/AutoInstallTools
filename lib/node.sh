@@ -11,6 +11,7 @@ install_node_lts() (
     return 0
   fi
 
+  if dryrun; then would 'install Node.js 22 LTS from NodeSource'; return 0; fi
   command -v curl >/dev/null || { record_failure 'nodejs' 'curl is unavailable'; return 0; }
   setup="$(mktemp)"
   trap 'rm -f -- "$setup"' EXIT

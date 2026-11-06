@@ -1,3 +1,4 @@
 # Optional zsh additions. Source this from ~/.zshrc if you do not use install.sh.
-export PATH="$HOME/.local/bin:$HOME/go/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.local/go/bin:$HOME/go/bin:$HOME/.cargo/bin:$PATH"
+export GOTOOLCHAIN=auto
 [[ -f "${0:A:h}/aliases.sh" ]] && source "${0:A:h}/aliases.sh"

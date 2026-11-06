@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-source "$ROOT/lib/golang.sh"
-[[ "$PROFILE" == minimal ]] && return 0
+# shellcheck disable=SC2154  # ROOT, PROFILE, BIN_DIR, WORDLISTS are set by install.sh
+source "$ROOT/lib/apt.sh"; source "$ROOT/lib/golang.sh"; source "$ROOT/lib/github.sh"
+[[ "$PROFILE" != full ]] && return 0
 log 'Installing reconnaissance tools'
+# naabu builds against libpcap; without the headers its go install fails (B7).
+apt_install libpcap-dev
 for spec in \
  'github.com/projectdiscovery/subfinder/v2/cmd/subfinder:subfinder' \
  'github.com/projectdiscovery/httpx/cmd/httpx:httpx' \
@@ -16,5 +19,9 @@ for spec in \
  'github.com/tomnomnom/assetfinder:assetfinder' \
  'github.com/tomnomnom/waybackurls:waybackurls' \
  'github.com/lc/gau/v2/cmd/gau:gau' \
- 'github.com/hakluke/hakrawler:hakrawler' \
- 'github.com/owasp-amass/amass/v4/...:amass'; do IFS=: read -r pkg bin <<< "$spec"; go_install "$pkg" "$bin" || true; done
+ 'github.com/hakluke/hakrawler:hakrawler'; do
+  IFS=: read -r pkg bin <<< "$spec"; go_install "$pkg" "$bin" || true
+done
+# amass: the /v4 module path resolves to a stale tag, so use the v5 release
+# binary instead of go install (B7).
+github_install_latest owasp-amass/amass amass || true

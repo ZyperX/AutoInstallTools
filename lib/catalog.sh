@@ -90,8 +90,8 @@ resolve_tools() {
   local tsv names; tsv=$(catalog_tools_tsv); names=$(cut -f1 <<<"$tsv")
   declare -A sel=()
 
-  local name tagcsv method desc optin bin item
-  while IFS=$'\t' read -r name tagcsv method desc optin bin; do
+  local name tagcsv optin item
+  while IFS=$'\t' read -r name tagcsv _ _ optin _; do
     [[ -z "$name" ]] && continue
     if [[ "$optin" != true ]] && _tags_intersect "$tagcsv" "$tags"; then sel[$name]=1; fi
   done <<< "$tsv"
@@ -103,7 +103,7 @@ resolve_tools() {
     if grep -qx "$item" <<< "$names"; then
       sel[$item]=1
     else
-      while IFS=$'\t' read -r name tagcsv method desc optin bin; do
+      while IFS=$'\t' read -r name tagcsv _ _ optin _; do
         [[ -z "$name" ]] && continue
         _tags_intersect "$tagcsv" "$item" && sel[$name]=1
       done <<< "$tsv"
@@ -117,7 +117,7 @@ resolve_tools() {
     if grep -qx "$item" <<< "$names"; then
       unset "sel[$item]"
     else
-      while IFS=$'\t' read -r name tagcsv method desc optin bin; do
+      while IFS=$'\t' read -r name tagcsv _ _ optin _; do
         [[ -z "$name" ]] && continue
         _tags_intersect "$tagcsv" "$item" && unset "sel[$name]"
       done <<< "$tsv"

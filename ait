@@ -78,11 +78,11 @@ ait_list() {
   # Set of names to show (newline-delimited); grep -Fxq tests membership.
   local names; names=$(_selected_names)
 
-  # One catalog pass gives name/desc/bin for every tool.
-  local name tagcsv method desc optin bin present first=1
+  # One catalog pass gives name/desc/bin for every tool (other columns ignored).
+  local name desc bin present first=1
   if ((JSON)); then printf '['; else printf '%-24s %-10s %s\n' 'TOOL' 'STATUS' 'DESCRIPTION'; fi
 
-  while IFS=$'\t' read -r name tagcsv method desc optin bin; do
+  while IFS=$'\t' read -r name _ _ desc _ bin; do
     [[ -z "$name" ]] && continue
     grep -Fxq "$name" <<< "$names" || continue
     present=false; command -v "$bin" >/dev/null 2>&1 && present=true
@@ -131,7 +131,7 @@ ait_install() {
 
 main() {
   local cmd=${1:-}
-  [[ $# -gt 0 ]] && shift || true
+  (($#)) && shift
   case "$cmd" in
     list) ait_list "$@" ;;
     install) ait_install "$@" ;;

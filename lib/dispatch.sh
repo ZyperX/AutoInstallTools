@@ -15,7 +15,7 @@ _expand_path() {
 
 # Methods that record their own manifest row.
 _self_recording() {
-  case "$1" in github_release | git_venv | docker | official_archive | manual) return 0 ;; *) return 1 ;; esac
+  case "$1" in github_release | git_venv | docker | official_archive | manual | uv | pipx) return 0 ;; *) return 1 ;; esac
 }
 
 # Record a generic method's install in the manifest, if it looks installed.
@@ -36,9 +36,13 @@ _record_generic() {
 }
 
 install_tool() {
-  local name=$1 method bin
+  local name=$1 method bin deps=()
   method=$(catalog_tool_field "$name" method)
   bin=$(catalog_tool_bin "$name")
+
+  # System prerequisites declared by any method (naabu needs libpcap-dev, etc.).
+  mapfile -t deps < <(catalog_tool_list "$name" apt_deps)
+  ((${#deps[@]})) && apt_install "${deps[@]}"
 
   case "$method" in
     apt)
@@ -46,12 +50,10 @@ install_tool() {
       ((${#pkgs[@]})) && apt_install "${pkgs[@]}"
       ;;
     go)
-      local deps=(); mapfile -t deps < <(catalog_tool_list "$name" apt_deps)
-      ((${#deps[@]})) && apt_install "${deps[@]}"
       go_install "$(catalog_tool_field "$name" go)" "$bin"
       ;;
     github_release) install_github_release "$name" ;;
-    pipx) pipx_install "$(catalog_tool_field "$name" pypi)" ;;
+    uv | pipx) install_uv_tool "$name" "$(catalog_tool_field "$name" pypi)" "$bin" ;;
     npm) npm_install "$(catalog_tool_field "$name" npm)" ;;
     cargo) cargo_install "$(catalog_tool_field "$name" crate)" ;;
     runtime)

@@ -59,6 +59,13 @@ tools:
     repo: mikefarah/yq
     bin: yq
     check: yq --version
+    asset:
+      linux_amd64: yq_linux_amd64.tar.gz
+      linux_arm64: yq_linux_arm64.tar.gz
+    sha256:
+      linux_amd64: 7dd21fe96aac5ecccef949f4e4abecf9f9344dc3a853f5a2b4633c7a7afa7dda
+      linux_arm64: 46583da045a14b8b369510d59c5754201a49c1ca887b0a9ddae2823e21fad177
+    version: v4.54.2
   - name: gron
     desc: Make JSON greppable
     category: core
@@ -72,6 +79,13 @@ tools:
     method: github_release
     repo: eza-community/eza
     bin: eza
+    asset:
+      linux_amd64: eza_x86_64-unknown-linux-gnu.tar.gz
+      linux_arm64: eza_aarch64-unknown-linux-gnu.tar.gz
+    sha256:
+      linux_amd64: 35c70c5c43c29108075e58b893234c67ef585f0b53a7eaf8e9e7d4eec9f339b4
+      linux_arm64: 40b87ae8628aa2ff0f0d2dc24ab52f689631366385c3da630bae745671fd71ec
+    version: v0.23.5
   - name: ripgrep
     desc: Fast recursive grep
     category: core
@@ -138,7 +152,28 @@ tools:
     tags: [core]
     method: apt
     apt: [socat]
-
+  - name: httpie
+    desc: Human-friendly HTTP client
+    category: core
+    tags: [core]
+    method: apt
+    apt: [httpie]
+    bin: http
+    check: http --version
+  - name: whiptail
+    desc: Dialog boxes for shell scripts
+    category: core
+    tags: [core]
+    method: apt
+    apt: [whiptail]
+    check: whiptail --version
+  - name: uro
+    desc: Deduplicate URLs from a list
+    category: core
+    tags: [core]
+    method: uv
+    pypi: uro
+    check: uro --help
   # ================= runtimes =================
   - name: python
     desc: Python 3 with pip and pipx
@@ -193,7 +228,6 @@ tools:
     tags: [runtime]
     method: npm
     npm: pnpm
-
   # ================= recon & attack surface =================
   - name: subfinder
     desc: Passive subdomain enumeration
@@ -258,24 +292,53 @@ tools:
     tags: [recon]
     method: github_release
     repo: projectdiscovery/tlsx
+    asset:
+      linux_amd64: tlsx_1.4.0_linux_amd64.zip
+      linux_arm64: tlsx_1.4.0_linux_arm64.zip
+    sha256:
+      linux_amd64: 05628cec246e292e2f9afc6e7bc5de95aaa0fbe78fd556d5ad220b9f4702d364
+      linux_arm64: b757125d94c7d0e1f1f109534f0ed88d2a4b1c3856e1fa35efc1ef9e36781b0e
+    checksum_file: tlsx_1.4.0_checksums.txt
+    version: v1.4.0
   - name: cdncheck
     desc: Detect CDN/WAF/cloud by IP
     category: recon
     tags: [recon]
     method: github_release
     repo: projectdiscovery/cdncheck
+    asset:
+      linux_amd64: cdncheck_1.4.0_linux_amd64.zip
+      linux_arm64: cdncheck_1.4.0_linux_arm64.zip
+    sha256:
+      linux_amd64: 88ea978937c2e8e8c658053c46800010a29a7747f4b6b9335355de62f41f4977
+      linux_arm64: 0160e28ddd88ae631485fbb4790fbbc081dda4db9df416528d93d5378814960d
+    checksum_file: cdncheck_1.4.0_checksums.txt
+    version: v1.4.0
   - name: asnmap
     desc: Map ASN to IP ranges
     category: recon
     tags: [recon]
     method: github_release
     repo: projectdiscovery/asnmap
+    asset:
+      linux_amd64: asnmap_1.2.0_linux_amd64.zip
+      linux_arm64: asnmap_1.2.0_linux_arm64.zip
+    sha256:
+      linux_amd64: 38c732ceb6832c00475111a7972e67ba8e5012b9ea4f776108fe38198289d667
+      linux_arm64: ef46f6d4c98e663bed8043211e0057b3ba98d281161395349dcb030acb69f501
+    checksum_file: asnmap_1.2.0_checksums.txt
+    version: v1.2.0
   - name: urlfinder
     desc: Passive URL discovery
     category: recon
     tags: [recon, web]
     method: github_release
     repo: projectdiscovery/urlfinder
+    asset:
+      linux_amd64: urlfinder_0.0.3_linux_amd64.zip
+      linux_arm64: urlfinder_0.0.3_linux_arm64.zip
+    checksum_file: urlfinder_0.0.3_checksums.txt
+    version: v0.0.3
   - name: gau
     desc: Fetch known URLs from passive sources
     category: recon
@@ -286,7 +349,7 @@ tools:
     desc: More URLs from Wayback & more sources
     category: recon
     tags: [recon, web]
-    method: pipx
+    method: uv
     pypi: waymore
   - name: gowitness
     desc: Screenshot & triage many hosts
@@ -294,6 +357,13 @@ tools:
     tags: [recon]
     method: github_release
     repo: sensepost/gowitness
+    asset:
+      linux_amd64: gowitness-3.2.2-linux-amd64
+      linux_arm64: gowitness-3.2.2-linux-arm64
+    sha256:
+      linux_amd64: 063ac21063ec96992a9bd7216bf05b3e96afa01a05e1a908490a2b42f573a12a
+      linux_arm64: 207f4abd2e6129f601346e44a3768e0549dd39a4498ee8602b1774b1a100c477
+    version: 3.2.2
   - name: puredns
     desc: Wildcard-aware DNS brute & resolve
     category: recon
@@ -329,6 +399,14 @@ tools:
     repo: owasp-amass/amass
     bin: amass
     notes: Heavy; opt-in via --with amass.
+    asset:
+      linux_amd64: amass_linux_amd64.tar.gz
+      linux_arm64: amass_linux_arm64.tar.gz
+    sha256:
+      linux_amd64: 4c12b725e4ce4981ece93a5e1566bd7391be1f349468856a79d31a43012ae201
+      linux_arm64: 02316f4e5703420cd86890c3c61f6d56ed10277d2bfea076d4e5cfd1a6b6099a
+    checksum_file: amass_checksums.txt
+    version: v5.1.3
   - name: nmap
     desc: Network & service scanner
     category: recon
@@ -366,16 +444,70 @@ tools:
     method: go
     go: github.com/tomnomnom/waybackurls
     notes: Superseded by gau / waymore.
-
   # ================= proxies =================
+  - name: caido-cli
+    desc: Modern web proxy CLI (headless)
+    category: proxy
+    tags: [web, mobile]
+    method: official_archive
+    version: v0.59.0
+    url:
+      linux_amd64: https://caido.download/releases/v0.59.0/caido-cli-v0.59.0-linux-x86_64.tar.gz
+      linux_arm64: https://caido.download/releases/v0.59.0/caido-cli-v0.59.0-linux-aarch64.tar.gz
+    sha256:
+      linux_amd64: ed75c1311012fb47020b80a6f1ff3e4127c089c0ada73697d89d9086e1578ac5
+      linux_arm64: 37cf7921f79841a41ce92cdb5b0108d2c11b07702957f5a96993464b4cf7bf30
+    bin: caido-cli
+    check: caido-cli --version
+  - name: caido-desktop
+    desc: Modern web proxy desktop UI
+    category: proxy
+    tags: [web, mobile]
+    gui: true
+    method: official_archive
+    version: v0.59.0
+    url:
+      linux_amd64: https://caido.download/releases/v0.59.0/caido-desktop-v0.59.0-linux-x86_64.AppImage
+      linux_arm64: https://caido.download/releases/v0.59.0/caido-desktop-v0.59.0-linux-aarch64.AppImage
+    sha256:
+      linux_amd64: a4f172eb9a23c8c14356a9efd09b7fa93b30a9fa09e172a60af7f229cdc920a5
+      linux_arm64: ca3da19240125b7beea34fbf9041353b4919080e48b04e8370c1b868bf63a54f
+    bin: caido-desktop
+    notes: On WSL, the Windows desktop app is recommended.
   - name: mitmproxy
     desc: Scriptable intercepting proxy
     category: proxy
     tags: [web, mobile]
-    method: pipx
+    method: uv
     pypi: mitmproxy
     bin: mitmproxy
-
+    check: mitmproxy --version
+  - name: burp
+    desc: Industry-standard web proxy (GUI)
+    category: proxy
+    tags: [web]
+    gui: true
+    opt_in: true
+    method: manual
+    bin: burpsuite
+    notes: Download Community or Pro from portswigger.net; you accept its licence.
+  - name: zap
+    desc: OWASP ZAP proxy & DAST scanner
+    category: proxy
+    tags: [web]
+    gui: true
+    opt_in: true
+    method: official_archive
+    repo: zaproxy/zaproxy
+    asset:
+      linux_amd64: ZAP_2.17.0_Crossplatform.zip
+      linux_arm64: ZAP_2.17.0_Crossplatform.zip
+    bin: zap.sh
+    notes: Large download; needs JDK 21.
+    sha256:
+      linux_amd64: 94c8f767b1c2e94f0db66b3ae56514d5e3f5a728ee1b6c798e0c8fe2d61fbff0
+      linux_arm64: 94c8f767b1c2e94f0db66b3ae56514d5e3f5a728ee1b6c798e0c8fe2d61fbff0
+    version: v2.17.0
   # ================= content discovery & fuzzing =================
   - name: ffuf
     desc: The general-purpose web fuzzer
@@ -392,6 +524,13 @@ tools:
     repo: epi052/feroxbuster
     bin: feroxbuster
     check: feroxbuster --version
+    asset:
+      linux_amd64: x86_64-linux-feroxbuster.tar.gz
+      linux_arm64: aarch64-linux-feroxbuster.zip
+    sha256:
+      linux_amd64: 7985c00e6803b0f25d5e9139f7472279f3f4d891429627a5cedc629e53992d80
+      linux_arm64: 1e5244e1f52e55a647b65e0c76ae7afe0b9983c1fbea30ed7c67e477175eb381
+    version: v2.13.1
   - name: x8
     desc: Hidden HTTP parameter discovery
     category: discovery
@@ -399,11 +538,16 @@ tools:
     method: github_release
     repo: Sh1Yo/x8
     bin: x8
+    asset:
+      linux_amd64: x86_64-linux-x8.gz
+    sha256:
+      linux_amd64: b3e54da4c0cc62163a3485addea6671368ee69342ea5740e56d6d6112196bd0e
+    version: v4.3.0
   - name: arjun
     desc: HTTP parameter discovery
     category: discovery
     tags: [web, api]
-    method: pipx
+    method: uv
     pypi: arjun
   - name: nomore403
     desc: 401/403 bypass techniques
@@ -412,6 +556,14 @@ tools:
     method: github_release
     repo: devploit/nomore403
     bin: nomore403
+    asset:
+      linux_amd64: nomore403_linux_amd64
+      linux_arm64: nomore403_linux_arm64
+    sha256:
+      linux_amd64: 8e9758de82fd43196f96aeb1cd3d6048ade9253722a090a742f61067b278eadd
+      linux_arm64: aab5362c871bac0072c085d01b2bfd450513efcdefd865834d56924e17d408d0
+    checksum_file: checksums.txt
+    version: v2.0.1
   - name: gobuster
     desc: Directory/DNS/vhost brute forcing
     category: discovery
@@ -425,10 +577,9 @@ tools:
     category: discovery
     tags: [web]
     opt_in: true
-    method: pipx
+    method: uv
     pypi: dirsearch
     notes: Superseded by ffuf / feroxbuster.
-
   # ================= vuln scanning & exploitation =================
   - name: nuclei
     desc: Template-based vulnerability scanner
@@ -444,6 +595,14 @@ tools:
     method: github_release
     repo: projectdiscovery/interactsh
     bin: interactsh-client
+    asset:
+      linux_amd64: interactsh-client_1.4.1_linux_amd64.zip
+      linux_arm64: interactsh-client_1.4.1_linux_arm64.zip
+    sha256:
+      linux_amd64: 1b7e2f1c2f61b36b8d3ce9857f0f338ad7dba47c32274465c77e868bcbc5eeeb
+      linux_arm64: 53cb19b97fa39ffe152903f61ca0359a2a98b413e9d1d78250d604f0f4308579
+    checksum_file: interactsh_1.4.1_checksums.txt
+    version: v1.4.1
   - name: vulnx
     desc: CVE search & triage from the terminal
     category: vuln
@@ -451,6 +610,14 @@ tools:
     method: github_release
     repo: projectdiscovery/vulnx
     bin: vulnx
+    asset:
+      linux_amd64: vulnx_2.0.2_linux_amd64.zip
+      linux_arm64: vulnx_2.0.2_linux_arm64.zip
+    sha256:
+      linux_amd64: 387abd1c42b0357e1d4257b54528fc38e1d0357b12f05ab12117a4c628a5aaf8
+      linux_arm64: 13c5888dde027b84bd3b6cf69c36c87e1e7aad7e7159bdeeb576f4962dcc1d06
+    checksum_file: vulnx_2.0.2_checksums.txt
+    version: v2.0.2
   - name: sqlmap
     desc: Automatic SQL injection testing
     category: vuln
@@ -461,7 +628,7 @@ tools:
     desc: SQLi tool, strong where sqlmap fails
     category: vuln
     tags: [web, api]
-    method: pipx
+    method: uv
     pypi: ghauri
   - name: dalfox
     desc: XSS scanning & verification
@@ -485,7 +652,16 @@ tools:
     git: https://github.com/commixproject/commix.git
     dest: ~/.local/share/ait/apps/commix
     bin: commix
-
+  - name: smuggler
+    desc: HTTP request smuggling checks
+    category: vuln
+    tags: [web]
+    opt_in: true
+    method: git_venv
+    git: https://github.com/defparam/smuggler.git
+    dest: ~/.local/share/ait/apps/smuggler
+    bin: smuggler
+    entry: smuggler.py
   # ================= API, GraphQL & auth =================
   - name: jwt_tool
     desc: JWT analysis, tampering & attacks
@@ -502,7 +678,52 @@ tools:
     method: github_release
     repo: assetnote/kiterunner
     bin: kr
-
+    asset:
+      linux_amd64: kiterunner_1.0.2_linux_amd64.tar.gz
+      linux_arm64: kiterunner_1.0.2_linux_arm64.tar.gz
+    checksum_file: kiterunner_1.0.2_checksums.txt
+    version: v1.0.2
+  - name: graphw00f
+    desc: GraphQL engine fingerprinting
+    category: api
+    tags: [api]
+    method: git_venv
+    git: https://github.com/dolevf/graphw00f.git
+    dest: ~/.local/share/ait/apps/graphw00f
+    bin: graphw00f
+    entry: main.py
+  - name: clairvoyance
+    desc: GraphQL schema recovery
+    category: api
+    tags: [api]
+    method: uv
+    pypi: clairvoyance
+    check: clairvoyance --help
+  - name: graphql-cop
+    desc: GraphQL security checks
+    category: api
+    tags: [api]
+    method: git_venv
+    git: https://github.com/dolevf/graphql-cop.git
+    dest: ~/.local/share/ait/apps/graphql-cop
+    bin: graphql-cop
+    entry: graphql-cop.py
+  - name: hurl
+    desc: Scriptable HTTP request chains
+    category: api
+    tags: [api]
+    opt_in: true
+    method: github_release
+    repo: Orange-OpenSource/hurl
+    bin: hurl
+    asset:
+      linux_amd64: hurl-8.1.0-x86_64-unknown-linux-gnu.tar.gz
+      linux_arm64: hurl-8.1.0-aarch64-unknown-linux-gnu.tar.gz
+    sha256:
+      linux_amd64: b497e7ab328100c507f1f3323ebe7cc5990d831ae4f9473b74d40b02971da4ca
+      linux_arm64: 33c39409d4a24febb91d3766d3a5cb4074b7b86ad89d612f26fa35ab5e8cec79
+    checksum_file: hurl-8.1.0-aarch64-apple-darwin.tar.gz.sha256
+    version: 8.1.0
   # ================= JavaScript, secrets & source =================
   - name: jsluice
     desc: Extract URLs & secrets from JS
@@ -510,11 +731,17 @@ tools:
     tags: [web]
     method: go
     go: github.com/BishopFox/jsluice/cmd/jsluice
+  - name: sourcemapper
+    desc: Rebuild source from exposed source maps
+    category: js-secrets
+    tags: [web]
+    method: go
+    go: github.com/denandz/sourcemapper
   - name: xnlinkfinder
     desc: Endpoint discovery from JS & responses
     category: js-secrets
     tags: [web]
-    method: pipx
+    method: uv
     pypi: xnLinkFinder
     bin: xnLinkFinder
   - name: trufflehog
@@ -523,13 +750,28 @@ tools:
     tags: [web, code]
     method: github_release
     repo: trufflesecurity/trufflehog
+    asset:
+      linux_amd64: trufflehog_3.99.8_linux_amd64.tar.gz
+      linux_arm64: trufflehog_3.99.8_linux_arm64.tar.gz
+    sha256:
+      linux_amd64: 7c3b02f160f28929a467e29e20fba98746e0729f6e37c3c25761e4f8789abe08
+      linux_arm64: a0382d83dd58c967af5dd0175cc732c62c836ab1d15dc9ae71b01a2d3f0911b2
+    checksum_file: trufflehog_3.99.8_checksums.txt
+    version: v3.99.8
   - name: gitleaks
     desc: Fast secret scanning for repos
     category: js-secrets
     tags: [code]
     method: github_release
     repo: gitleaks/gitleaks
-
+    asset:
+      linux_arm64: gitleaks_8.30.1_linux_arm64.tar.gz
+      linux_amd64: gitleaks_8.30.1_linux_x64.tar.gz
+    sha256:
+      linux_arm64: e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080
+      linux_amd64: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    checksum_file: gitleaks_8.30.1_checksums.txt
+    version: v8.30.1
   # ================= SAST / SCA / containers =================
   - name: osv-scanner
     desc: Dependency vulnerability scanning
@@ -538,50 +780,135 @@ tools:
     method: github_release
     repo: google/osv-scanner
     bin: osv-scanner
+    asset:
+      linux_amd64: osv-scanner_linux_amd64
+      linux_arm64: osv-scanner_linux_arm64
+    sha256:
+      linux_amd64: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+      linux_arm64: 4061ef4c021ed3c47f203b818f337e351336cc5cd67c0274fc36bd1dfc728dd7
+    version: v2.7.0
   - name: trivy
     desc: Container/IaC/FS & SBOM scanner
     category: sast-sca
     tags: [code, cloud]
     method: github_release
     repo: aquasecurity/trivy
+    asset:
+      linux_amd64: trivy_0.76.2_Linux-64bit.tar.gz
+      linux_arm64: trivy_0.76.2_Linux-ARM64.tar.gz
+    sha256:
+      linux_amd64: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+      linux_arm64: ab9d51f86e6a5fb936f605faff6b593ac51bc378fff4d3e8b9d58358b9c367c3
+    checksum_file: trivy_0.76.2_checksums.txt
+    version: v0.76.2
   - name: syft
     desc: Generate SBOMs from images & dirs
     category: sast-sca
     tags: [code, cloud]
     method: github_release
     repo: anchore/syft
+    asset:
+      linux_amd64: syft_1.57.0_linux_amd64.tar.gz
+      linux_arm64: syft_1.57.0_linux_arm64.tar.gz
+    sha256:
+      linux_amd64: 9c077a7d43029b3b13e98a8db720661e700c4d58db6352153a06395ae4a2a704
+      linux_arm64: 410cbfa0ae0f63246bc0057843760b1de2833cd23919e025e368fd7681308cdb
+    checksum_file: syft_1.57.0_checksums.txt
+    version: v1.57.0
   - name: grype
     desc: Vulnerability matching from SBOMs
     category: sast-sca
     tags: [code, cloud]
     method: github_release
     repo: anchore/grype
-
+    asset:
+      linux_amd64: grype_0.121.2_linux_amd64.tar.gz
+      linux_arm64: grype_0.121.2_linux_arm64.tar.gz
+    sha256:
+      linux_amd64: 9c8965ced9df657e5e851c14021bae838802f711edd7a48f9bc3c923a8d28f12
+      linux_arm64: d7d2e160255b0f087280feabf6f213cf4c45d475690f3f1fe5dc336eb1037bf0
+    checksum_file: grype_0.121.2_checksums.txt
+    version: v0.121.2
+  - name: opengrep
+    desc: Pattern-based static analysis (SAST)
+    category: sast-sca
+    tags: [code]
+    method: official_archive
+    repo: opengrep/opengrep
+    asset:
+      linux_amd64: opengrep_manylinux_x86
+      linux_arm64: opengrep_manylinux_aarch64
+    bin: opengrep
+    check: opengrep --version
+    sha256:
+      linux_amd64: 46e8133cc490f9f50518061590ce2f6be5a08afaeda034471c0ceda4b3899808
+      linux_arm64: d1433f63a90b8bc0b6ad4b498a13b372b856ce9a754a43484ba4920fe2d76dcf
+    version: v1.33.1
+  - name: semgrep
+    desc: Lightweight multi-language SAST
+    category: sast-sca
+    tags: [code]
+    opt_in: true
+    method: uv
+    pypi: semgrep
+    check: semgrep --version
+  - name: codeql
+    desc: Deep semantic code analysis (CodeQL CLI)
+    category: sast-sca
+    tags: [code]
+    opt_in: true
+    method: official_archive
+    repo: github/codeql-cli-binaries
+    asset:
+      linux_amd64: codeql-linux64.zip
+      linux_arm64: codeql-linux-arm64.zip
+    bin: codeql
+    notes: Large download; review GitHub's licence before use.
+    sha256:
+      linux_amd64: 393bf92b66596141ec93baf9b483f4a350f3749916c922fed0dd63c67706047d
+      linux_arm64: 168093d6650ca00e43c880885317e6c5745af7057da7ba7dc27d4a8f8e3e25af
+    version: v2.27.4
   # ================= Android =================
   - name: android-platform-tools
-    desc: Android adb & fastboot (apt)
+    desc: Android adb & fastboot (upstream)
     category: android
     tags: [mobile]
-    method: apt
-    apt: [adb, fastboot]
+    method: official_archive
+    version: r37.0.2
+    url: https://dl.google.com/android/repository/platform-tools_r37.0.2-linux.zip
+    sha256: dfc80a84a6710e5674415d4b55ae599c01aa4961822f53097d747472f410f157
     bin: adb
     check: adb version
-    notes: Phase 4 replaces this with Google's upstream platform-tools zip.
+    notes: From Google, not apt. Linux/amd64 build.
   - name: apktool
     desc: Decode, patch & rebuild APKs
     category: android
     tags: [mobile]
-    method: apt
-    apt: [apktool]
+    method: official_archive
+    repo: iBotPeaches/Apktool
+    asset:
+      linux_amd64: apktool_3.0.3.jar
+      linux_arm64: apktool_3.0.3.jar
+    bin: apktool
     check: apktool --version
+    sha256:
+      linux_amd64: dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423
+      linux_arm64: dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423
+    version: v3.0.3
   - name: jadx
     desc: DEX to Java decompiler (CLI)
     category: android
     tags: [mobile]
     method: official_archive
     repo: skylot/jadx
-    asset: 'jadx-*.zip'
+    asset:
+      linux_amd64: jadx-1.5.6.zip
+      linux_arm64: jadx-1.5.6.zip
     bin: jadx
+    sha256:
+      linux_amd64: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+      linux_arm64: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+    version: v1.5.6
   - name: jadx-gui
     desc: DEX to Java decompiler (GUI)
     category: android
@@ -589,13 +916,19 @@ tools:
     gui: true
     method: official_archive
     repo: skylot/jadx
-    asset: 'jadx-*.zip'
+    asset:
+      linux_amd64: jadx-1.5.6.zip
+      linux_arm64: jadx-1.5.6.zip
     bin: jadx-gui
+    sha256:
+      linux_amd64: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+      linux_arm64: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+    version: v1.5.6
   - name: droidasc
     desc: Fast on-demand APK search & decompile
     category: android
     tags: [mobile]
-    method: pipx
+    method: uv
     pypi: droidasc
     check: droidasc -h
   - name: rust-asc
@@ -605,6 +938,13 @@ tools:
     method: github_release
     repo: MG1937/rust_ASC
     bin: rust-asc
+    asset:
+      linux_amd64: rust_ASC-linux-x86_64
+      linux_arm64: rust_ASC-linux-aarch64
+    sha256:
+      linux_amd64: 5104c02232538b90b483826c1eaf3dc965886e3eac214abcee117e3f3f8e77cb
+      linux_arm64: c88cd73c1a9bfcdefebc16252929f4e10806d73c5a9ff2f4163d3ee055da572c
+    version: v0.1.2-post1
   - name: apk-mitm
     desc: Auto-patch APKs for TLS interception
     category: android
@@ -617,31 +957,37 @@ tools:
     tags: [mobile]
     method: official_archive
     repo: patrickfav/uber-apk-signer
-    asset: 'uber-apk-signer-*.jar'
+    asset:
+      linux_amd64: uber-apk-signer-1.3.0.jar
+      linux_arm64: uber-apk-signer-1.3.0.jar
     bin: uber-apk-signer
+    sha256:
+      linux_amd64: e1299fd6fcf4da527dd53735b56127e8ea922a321128123b9c32d619bba1d835
+      linux_arm64: e1299fd6fcf4da527dd53735b56127e8ea922a321128123b9c32d619bba1d835
+    version: v1.3.0
   - name: reflutter
     desc: Flutter app traffic interception
     category: android
     tags: [mobile]
-    method: pipx
+    method: uv
     pypi: reflutter
   - name: hermes-dec
     desc: React Native Hermes decompiler
     category: android
     tags: [mobile]
-    method: pipx
+    method: uv
     pypi: hermes-dec
   - name: apkleaks
     desc: Secrets & endpoints in APKs
     category: android
     tags: [mobile]
-    method: pipx
+    method: uv
     pypi: apkleaks
   - name: frida-tools
     desc: Dynamic instrumentation (Frida 17+)
     category: android
     tags: [mobile]
-    method: pipx
+    method: uv
     pypi: frida-tools
     bin: frida
     check: frida --version
@@ -649,7 +995,7 @@ tools:
     desc: Runtime mobile exploration on Frida
     category: android
     tags: [mobile]
-    method: pipx
+    method: uv
     pypi: objection
   - name: scrcpy
     desc: Mirror & control the device screen
@@ -668,7 +1014,34 @@ tools:
     docker_args: -p 8000:8000
     bin: mobsf
     notes: Web UI on http://localhost:8000 once started.
-
+  - name: medusa
+    desc: Modular Frida mobile testing framework
+    category: android
+    tags: [mobile]
+    opt_in: true
+    method: git_venv
+    git: https://github.com/Ch0pin/medusa.git
+    dest: ~/.local/share/ait/apps/medusa
+    bin: medusa
+    entry: medusa.py
+    notes: Run `medusa` and follow its dependency setup on first use.
+  - name: blutter
+    desc: Flutter AOT snapshot analysis
+    category: android
+    tags: [mobile]
+    opt_in: true
+    method: manual
+    bin: blutter
+    notes: Clone https://github.com/worawit/blutter and run its install script.
+  - name: android-cmdline-tools
+    desc: Android SDK tools & emulator
+    category: android
+    tags: [mobile]
+    opt_in: true
+    method: official_archive
+    url: https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip
+    bin: sdkmanager
+    notes: Large; Linux/amd64 only. Use sdkmanager to install emulator images.
   # ================= iOS (host side) =================
   - name: libimobiledevice
     desc: Talk to iOS devices from Linux
@@ -684,6 +1057,14 @@ tools:
     method: github_release
     repo: blacktop/ipsw
     bin: ipsw
+    asset:
+      linux_amd64: ipswd_3.1.743_linux_x86_64.tar.gz
+      linux_arm64: ipswd_3.1.743_linux_arm64.tar.gz
+    sha256:
+      linux_amd64: b4234f1439c00d7b49fb1b658ed1b093e0db25180fb5d6ff103c84cb3c02ba9a
+      linux_arm64: aeb5d32c9c74cbf120fb90c2a940ba6933d5a61da40b2b4530c5d4964ec2ce14
+    checksum_file: checksums.txt
+    version: v3.1.743
   - name: ipatool
     desc: Download IPAs from the App Store
     category: ios
@@ -691,7 +1072,28 @@ tools:
     method: github_release
     repo: majd/ipatool
     bin: ipatool
-
+    asset:
+      linux_amd64: ipatool-2.7.0-linux-amd64.tar.gz
+      linux_arm64: ipatool-2.7.0-linux-arm64.tar.gz
+    sha256:
+      linux_amd64: 68372de9743d468296f2dba5b413a3e7df56ad0c85b8d0f4f0f6c9b8b53a54e8
+      linux_arm64: 133c3fb754bafcd61698ba6047b48096c7033345529f57d7a83d281f8a403c23
+    version: v2.7.0
+  - name: bagbak
+    desc: Decrypt apps on a jailbroken device
+    category: ios
+    tags: [mobile]
+    method: npm
+    npm: bagbak
+    check: bagbak --version
+  - name: grapefruit
+    desc: Web UI for iOS runtime analysis
+    category: ios
+    tags: [mobile]
+    opt_in: true
+    method: npm
+    npm: grapefruit
+    bin: igf
   # ================= reversing =================
   - name: ghidra
     desc: Software reverse engineering suite
@@ -701,10 +1103,15 @@ tools:
     opt_in: true
     method: official_archive
     repo: NationalSecurityAgency/ghidra
-    asset: 'ghidra_*_PUBLIC_*.zip'
+    asset:
+      linux_amd64: ghidra_12.2_PUBLIC_20261016.zip
+      linux_arm64: ghidra_12.2_PUBLIC_20261016.zip
     bin: ghidraRun
     notes: Large; needs JDK 21. Opt-in via --with ghidra.
-
+    sha256:
+      linux_amd64: 2c2cd776db3c1f6a097ba418922378ac3649cadd5e844a6f5f088ae628a7be67
+      linux_arm64: 2c2cd776db3c1f6a097ba418922378ac3649cadd5e844a6f5f088ae628a7be67
+    version: Ghidra_12.2_build
   # ================= cloud / kubernetes / containers =================
   - name: awscli
     desc: AWS CLI v2 (official installer)
@@ -719,12 +1126,28 @@ tools:
     tags: [cloud]
     method: github_release
     repo: derailed/k9s
+    asset:
+      linux_amd64: k9s_Linux_amd64.tar.gz
+      linux_arm64: k9s_Linux_arm64.tar.gz
+    sha256:
+      linux_amd64: c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc8161dd7
+      linux_arm64: 3ee05c82e5f9198928a4e86133608ba6a2c10a2244d6a7789e820f78319d640c
+    checksum_file: checksums.sha256
+    version: v0.51.0
   - name: kubectx
     desc: Switch kube contexts & namespaces
     category: cloud
     tags: [cloud]
     method: github_release
     repo: ahmetb/kubectx
+    asset:
+      linux_amd64: kubectx_v0.11.0_linux_x86_64.tar.gz
+      linux_arm64: kubectx_v0.11.0_linux_arm64.tar.gz
+    sha256:
+      linux_amd64: 08e031c54fbffb3f100e904e4eae94bba2730fedf4869921fda79e4d7a8f5d4c
+      linux_arm64: 1dac2072216689e773325cb7587b858ea7415706ebcf04e23bf80e7e70555340
+    checksum_file: checksums.txt
+    version: v0.11.0
   - name: docker
     desc: Container engine (docker.io)
     category: container
@@ -741,19 +1164,39 @@ tools:
     repo: docker/compose
     bin: docker-compose
     dest: ~/.docker/cli-plugins/docker-compose
+    asset:
+      linux_amd64: docker-compose-linux-x86_64
+      linux_arm64: docker-compose-linux-aarch64
+    sha256:
+      linux_amd64: 7758048ad38e580f22559603312874fec8bb638d021a9e64182385fc17cc12a2
+      linux_arm64: 15861535d14e26555736b49376c95e14bfd94285366c8446bfac7156a972e76f
+    checksum_file: checksums.txt
+    version: v5.7.0
   - name: lazydocker
     desc: Docker management TUI
     category: container
     tags: [cloud]
     method: github_release
     repo: jesseduffield/lazydocker
+    asset:
+      linux_amd64: lazydocker_0.25.2_Linux_x86_64.tar.gz
+      linux_arm64: lazydocker_0.25.2_Linux_arm64.tar.gz
+    sha256:
+      linux_amd64: 0d9dbfc26068b218e7ed84b104748cadc6e3cf733c0afd35465306fb39b9523c
+      linux_arm64: 005c38b685aaa557e7d646d83a3dadb5024340eeed8c6a2e1949eee6f530de23
+    checksum_file: checksums.txt
+    version: v0.25.2
   - name: dive
     desc: Inspect Docker image layers
     category: container
     tags: [cloud]
     method: github_release
     repo: wagoodman/dive
-
+    asset:
+      linux_amd64: dive_0.13.1_linux_amd64.tar.gz
+      linux_arm64: dive_0.13.1_linux_arm64.tar.gz
+    checksum_file: dive_0.13.1_checksums.txt
+    version: v0.13.1
   # ================= AI assistants (opt-in) =================
   - name: claude-code
     desc: Anthropic Claude Code CLI
@@ -776,7 +1219,7 @@ tools:
     category: ai
     tags: [ai]
     opt_in: true
-    method: pipx
+    method: uv
     pypi: aider-chat
     bin: aider
   - name: llm
@@ -784,17 +1227,17 @@ tools:
     category: ai
     tags: [ai]
     opt_in: true
-    method: pipx
+    method: uv
     pypi: llm
   - name: shell-gpt
     desc: LLM helper for the command line
     category: ai
     tags: [ai]
     opt_in: true
-    method: pipx
+    method: uv
     pypi: shell-gpt
     bin: sgpt
-
+    notes: Superseded by llm.
   # ================= wordlists =================
   - name: seclists
     desc: The security tester's wordlists
@@ -824,6 +1267,13 @@ tools:
     method: git
     git: https://github.com/six2dez/OneListForAll.git
     dest: $WORDLISTS/OneListForAll
+  - name: resolvers
+    desc: Trusted public DNS resolver list
+    category: wordlists
+    tags: [wordlists]
+    method: git
+    git: https://github.com/trickest/resolvers.git
+    dest: $WORDLISTS/resolvers
   - name: assetnote
     desc: Assetnote wordlists (large CDN mirror)
     category: wordlists

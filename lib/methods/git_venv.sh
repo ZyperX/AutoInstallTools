@@ -29,11 +29,17 @@ install_git_venv() (
     "$dest/.venv/bin/pip" install --quiet -r "$dest/requirements.txt" || { record_failure "$name" 'pip install failed'; return 0; }
   fi
 
-  # Entry point: prefer <bin>.py, else a same-named .py, else the console script.
-  local entry=''
-  for cand in "$bin.py" "${bin//-/_}.py" "$name.py"; do
-    [[ -f "$dest/$cand" ]] && { entry="$dest/$cand"; break; }
-  done
+  # Entry point: catalog `entry` wins, else <bin>.py, else a same-named .py,
+  # else the venv's console script.
+  local entry='' declared
+  declared=$(catalog_tool_field "$name" entry)
+  if [[ -n "$declared" ]]; then
+    [[ -f "$dest/$declared" ]] && entry="$dest/$declared"
+  else
+    for cand in "$bin.py" "${bin//-/_}.py" "$name.py"; do
+      [[ -f "$dest/$cand" ]] && { entry="$dest/$cand"; break; }
+    done
+  fi
   if [[ -n "$entry" ]]; then
     cat > "$BIN_DIR/$bin" <<EOF
 #!/usr/bin/env bash

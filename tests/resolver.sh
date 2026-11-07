@@ -15,7 +15,7 @@ has() { grep -qx "$2" <<<"$1"; }
 minimal=$(resolve_tools minimal '' '')
 web=$(resolve_tools web '' '')
 mobile=$(resolve_tools mobile '' '')
-full=$(resolve_tools full '' '')
+all=$(resolve_tools all '' '')
 
 # minimal has core/runtime but not recon/web/mobile
 has "$minimal" jq        || { echo "RESOLVER: minimal missing jq" >&2; fail=1; }
@@ -25,18 +25,20 @@ has "$minimal" objection && { echo "RESOLVER: minimal should not include objecti
 # web includes recon+web tools, not mobile-only
 has "$web" subfinder   || { echo "RESOLVER: web missing subfinder" >&2; fail=1; }
 has "$web" ffuf        || { echo "RESOLVER: web missing ffuf" >&2; fail=1; }
+has "$web" kiterunner || { echo "RESOLVER: web missing api tools (kiterunner)" >&2; fail=1; }
+has "$web" gitleaks   || { echo "RESOLVER: web missing code tools (gitleaks)" >&2; fail=1; }
 has "$web" objection   && { echo "RESOLVER: web should not include objection" >&2; fail=1; }
 
 # mobile includes mobile tools, not web-only
 has "$mobile" objection || { echo "RESOLVER: mobile missing objection" >&2; fail=1; }
 has "$mobile" feroxbuster && { echo "RESOLVER: mobile should not include feroxbuster" >&2; fail=1; }
 
-# full is the union (web + mobile + code) but excludes opt-in
-has "$full" subfinder  || { echo "RESOLVER: full missing subfinder" >&2; fail=1; }
-has "$full" objection  || { echo "RESOLVER: full missing objection" >&2; fail=1; }
-has "$full" trivy      || { echo "RESOLVER: full missing trivy" >&2; fail=1; }
-has "$full" assetnote  && { echo "RESOLVER: full should exclude opt-in assetnote" >&2; fail=1; }
-has "$full" claude-code && { echo "RESOLVER: full should exclude opt-in claude-code" >&2; fail=1; }
+# all is the union (web + mobile + code) but excludes opt-in
+has "$all" subfinder  || { echo "RESOLVER: all missing subfinder" >&2; fail=1; }
+has "$all" objection  || { echo "RESOLVER: all missing objection" >&2; fail=1; }
+has "$all" trivy      || { echo "RESOLVER: all missing trivy" >&2; fail=1; }
+has "$all" assetnote  && { echo "RESOLVER: all should exclude opt-in assetnote" >&2; fail=1; }
+has "$all" claude-code && { echo "RESOLVER: all should exclude opt-in claude-code" >&2; fail=1; }
 
 # --with adds a tool by name; --without removes by name
 has "$(resolve_tools minimal nuclei '')" nuclei || { echo "RESOLVER: --with nuclei failed" >&2; fail=1; }

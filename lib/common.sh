@@ -65,7 +65,10 @@ report_failures() {
   }
   err 'The following tools could not be installed:'
   while IFS= read -r tool; do printf '  - %s\n' "$tool" >&2; done < "$FAILURES_FILE"
-  warn 'Review the preceding error output, fix prerequisites, then rerun ./install.sh.'
+  local retry
+  retry="$(paste -sd, - < "$FAILURES_FILE")"
+  warn "Review the error output above, fix prerequisites, then retry with:"
+  printf '    ./ait install --profile %s --with %s --yes\n' "${PROFILE:-web}" "$retry" >&2
 }
 
 require_linux() {
@@ -75,11 +78,21 @@ require_linux() {
 
 is_wsl() { grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null; }
 
+# Platform names used by the catalog's `platforms` filter.
+detect_platform() {
+  case "$(uname -s)" in
+    Linux) if is_wsl; then echo wsl; else echo linux; fi ;;
+    Darwin) echo macos ;;
+    *) echo unknown ;;
+  esac
+}
+
 # Platform key for per-arch pinning maps (asset / sha256).
 plat_key() {
   case "$(uname -s)-$(uname -m)" in
     Linux-x86_64) echo linux_amd64 ;;
     Linux-aarch64 | Linux-arm64) echo linux_arm64 ;;
+    Darwin-x86_64) echo darwin_amd64 ;;
     Darwin-arm64) echo darwin_arm64 ;;
     *) return 1 ;;
   esac
@@ -97,28 +110,32 @@ confirm_or_exit() {
   [[ "$a" =~ ^[Yy]$ ]] || exit 0
 }
 
-# Add a PATH/aliases snippet to the user's shell rc. Aliases are copied into
+# Add a PATH/aliases snippet to the user's shell rc. The snippet is copied into
 # BOOTSTRAP_HOME so the rc keeps working if the clone is moved or removed.
 configure_shell() {
   local rc="$HOME/.bashrc"
   [[ "${SHELL:-}" == *zsh ]] && rc="$HOME/.zshrc"
-  local aliases_dest="$BOOTSTRAP_HOME/aliases.sh"
+  local snippet="$BOOTSTRAP_HOME/shell.sh"
 
   if dryrun; then
-    would "copy config/aliases.sh to $aliases_dest and add an AIT block to $rc"
+    would "copy config/aliases.sh to $snippet and add an AIT block to $rc"
     return 0
   fi
 
   mkdir -p "$BOOTSTRAP_HOME"
-  # shellcheck disable=SC2154  # ROOT is set by the entrypoint (install.sh)
-  [[ -f "$ROOT/config/aliases.sh" ]] && install -m 0644 "$ROOT/config/aliases.sh" "$aliases_dest"
+  # shellcheck disable=SC2154  # ROOT is set by the entrypoint
+  [[ -f "$ROOT/config/aliases.sh" ]] && install -m 0644 "$ROOT/config/aliases.sh" "$snippet"
 
-  grep -q '>>> AIT >>>' "$rc" 2>/dev/null && return 0
+  if grep -q '>>> AIT >>>' "$rc" 2>/dev/null; then
+    ok "AIT shell block already present in $rc"
+    return 0
+  fi
   cat >> "$rc" <<EOF
+
 # >>> AIT >>>
 export PATH="$BIN_DIR:\$HOME/.local/go/bin:\$HOME/go/bin:\$HOME/.cargo/bin:\$PATH"
 export GOTOOLCHAIN=auto
-[ -f "$aliases_dest" ] && . "$aliases_dest"
+[ -f "$snippet" ] && . "$snippet"
 # <<< AIT <<<
 EOF
   ok "Added AIT shell block to $rc"

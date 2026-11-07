@@ -65,8 +65,16 @@ catalog_tool_names() { q '.tools[].name' "$TOOLS_YAML"; }
 catalog_tool_exists() { local n; n=$(catalog_tool_names); grep -qx "$1" <<<"$n"; }
 # field of a single tool (empty string if absent/null)
 catalog_tool_field() {
-  local out; out=$(q ".tools[] | select(.name == \"$1\") | .$2 // \"\"" "$TOOLS_YAML")
+  local out; out=$(q ".tools[] | select(.name == \"$1\") | .$2 // \"\"" "$TOOLS_YAML" 2>/dev/null || true)
   [[ "$out" == null ]] && out=''
+  printf '%s' "$out"
+}
+
+# Like catalog_tool_field, but returns nothing for mappings (per-platform maps
+# are read with catalog_tool_field "field.$plat_key" instead).
+catalog_tool_str() {
+  local out; out=$(catalog_tool_field "$1" "$2")
+  [[ "$out" == *$'\n'* || "$out" =~ ^[a-z0-9_]+:\ [^[:space:]] ]] && out=''
   printf '%s' "$out"
 }
 # a tool's bin (defaults to its name)
@@ -82,30 +90,83 @@ _tags_intersect() {
   return 1
 }
 
+# All tags used by the catalog (for validating --with/--without).
+catalog_tags() { q '[.tools[].tags[]] | unique | .[]' "$TOOLS_YAML"; }
+
+# Resolver rows: name tags opt_in category gui platforms priority.
+# Priority 0 = runtimes, 1 = tools that need apt deps, 2 = everything else,
+# so a deterministic install order puts prerequisites first.
+catalog_resolve_tsv() {
+  q '.tools[] | [
+    .name,
+    (.tags | join(",")),
+    (.opt_in // false),
+    .category,
+    (.gui // false),
+    ((.platforms // ["linux", "wsl"]) | join(",")),
+    (if .category == "runtime" then 0
+     elif ((.apt_deps // []) | length) > 0 then 1
+     else 2 end)
+  ] | @tsv' "$TOOLS_YAML"
+}
+
+_platform_allowed() {
+  local have=",$1,"; [[ "$have" == *",$2,"* ]]
+}
+
+# Offer close matches for a typo'd tool/tag name.
+_catalog_suggest() {
+  local needle=$1 candidates out
+  candidates=$( { catalog_tool_names; catalog_tags; } | sort -u )
+  out=$(grep -i -- "${needle:0:3}" <<<"$candidates" | head -n3 | paste -sd, -)
+  [[ -n "$out" ]] || out=$(head -n3 <<<"$candidates" | paste -sd, -)
+  printf '%s' "$out"
+}
+
+_is_known_selector() {
+  local item=$1 names
+  names=$( { catalog_tool_names; catalog_tags; } )
+  grep -qx -- "$item" <<<"$names"
+}
+
+_require_selector() {
+  _is_known_selector "$1" \
+    || die "Unknown tool or tag: '$1' (did you mean: $(_catalog_suggest "$1")?)"
+}
+
 # resolve_tools <profile> <with_csv> <without_csv> -> tool names, one per line
 resolve_tools() {
   local profile=$1 with=${2:-} without=${3:-}
-  local tags; tags=$(catalog_profile_tags "$profile" | tr '\n' ' ')
-  # Read the catalog once; everything below works off these cached copies.
-  local tsv names; tsv=$(catalog_tools_tsv); names=$(cut -f1 <<<"$tsv")
-  declare -A sel=()
+  local tags platform tsv
+  tags=$(catalog_profile_tags "$profile" | tr '\n' ' ')
+  platform=$(detect_platform)
+  tsv=$(catalog_resolve_tsv)
 
-  local name tagcsv optin item
-  while IFS=$'\t' read -r name tagcsv _ _ optin _; do
+  declare -A sel=() prio_of=() cat_of=()
+  local name tagcsv optin category gui platforms prio item
+  while IFS=$'\t' read -r name tagcsv optin category gui platforms prio; do
     [[ -z "$name" ]] && continue
-    if [[ "$optin" != true ]] && _tags_intersect "$tagcsv" "$tags"; then sel[$name]=1; fi
+    prio_of[$name]=$prio; cat_of[$name]=$category
+    [[ "$optin" == true ]] && continue
+    _tags_intersect "$tagcsv" "$tags" || continue
+    _platform_allowed "$platforms" "$platform" || continue
+    [[ "$profile" == vps && "$gui" == true ]] && continue
+    sel[$name]=1
   done <<< "$tsv"
 
   # --with: a tool name adds that tool; anything else is treated as a tag.
   IFS=',' read -ra _w <<< "$with"
   for item in "${_w[@]}"; do
     [[ -z "$item" ]] && continue
-    if grep -qx "$item" <<< "$names"; then
+    _require_selector "$item"
+    if grep -qx -- "$item" <<<"$(cut -f1 <<<"$tsv")"; then
       sel[$item]=1
     else
-      while IFS=$'\t' read -r name tagcsv _ _ optin _; do
+      while IFS=$'\t' read -r name tagcsv _ _ _ platforms _; do
         [[ -z "$name" ]] && continue
-        _tags_intersect "$tagcsv" "$item" && sel[$name]=1
+        _tags_intersect "$tagcsv" "$item" || continue
+        _platform_allowed "$platforms" "$platform" || continue
+        sel[$name]=1
       done <<< "$tsv"
     fi
   done
@@ -114,15 +175,19 @@ resolve_tools() {
   IFS=',' read -ra _wo <<< "$without"
   for item in "${_wo[@]}"; do
     [[ -z "$item" ]] && continue
-    if grep -qx "$item" <<< "$names"; then
+    _require_selector "$item"
+    if grep -qx -- "$item" <<<"$(cut -f1 <<<"$tsv")"; then
       unset "sel[$item]"
     else
-      while IFS=$'\t' read -r name tagcsv _ _ optin _; do
+      while IFS=$'\t' read -r name tagcsv _ _ _ _ _; do
         [[ -z "$name" ]] && continue
         _tags_intersect "$tagcsv" "$item" && unset "sel[$name]"
       done <<< "$tsv"
     fi
   done
 
-  printf '%s\n' "${!sel[@]}" | sort
+  local n
+  for n in "${!sel[@]}"; do
+    printf '%s\t%s\t%s\n' "${prio_of[$n]}" "${cat_of[$n]}" "$n"
+  done | sort -t$'\t' -k1,1n -k2,2 -k3,3 | cut -f3
 }

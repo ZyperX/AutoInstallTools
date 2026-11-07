@@ -11,12 +11,19 @@ install_official_archive() (
   local name=$1
   local repo asset_glob url version sha bin opt key
   repo=$(catalog_tool_field "$name" repo)
-  asset_glob=$(catalog_tool_field "$name" asset)
-  url=$(catalog_tool_field "$name" url)
   version=$(catalog_tool_field "$name" version)
   bin=$(catalog_tool_bin "$name")
   opt="$BOOTSTRAP_HOME/opt/$name"
   key=$(plat_key || true)
+
+  # Asset and URL may be scalars/globs or per-platform maps.
+  asset_glob=''; url=''
+  if [[ -n "$key" ]]; then
+    asset_glob=$(catalog_tool_field "$name" "asset.$key")
+    url=$(catalog_tool_field "$name" "url.$key")
+  fi
+  [[ -n "$asset_glob" ]] || asset_glob=$(catalog_tool_str "$name" asset)
+  [[ -n "$url" ]] || url=$(catalog_tool_str "$name" url)
 
   command -v "$bin" >/dev/null 2>&1 && { ok "$name already installed; skipping"; return 0; }
   if dryrun; then would "install $name (official_archive)"; return 0; fi
@@ -44,8 +51,17 @@ install_official_archive() (
   local file="$tmp/${url##*/}"
   retry curl -fL --retry 3 -o "$file" "$url" || { record_failure "$name" 'download failed'; return 0; }
 
+  local cfile; cfile=$(catalog_tool_field "$name" "checksum_file.$key")
+  [[ -n "$cfile" ]] || cfile=$(catalog_tool_str "$name" checksum_file)
   if [[ -n "$sha" ]]; then
     verify_sha256 "$file" "$sha" || { record_failure "$name" 'sha256 verification failed'; return 0; }
+    ok "$name: checksum verified"
+  elif [[ -n "$cfile" ]]; then
+    local cfile_url; cfile_url=$(dirname "$url")/$cfile
+    retry curl -fL --retry 3 -o "$tmp/cf" "$cfile_url" \
+      || { record_failure "$name" 'checksum file download failed'; return 0; }
+    local exp; exp=$(checksum_from_file "$tmp/cf" "${url##*/}")
+    verify_sha256 "$file" "$exp" || { record_failure "$name" 'sha256 verification failed'; return 0; }
     ok "$name: checksum verified"
   else
     warn "$name: no pinned checksum; installing unpinned"
@@ -64,7 +80,7 @@ EOF
     *.zip) unzip -q "$file" -d "$opt" || { record_failure "$name" 'unzip failed'; return 0; } ;;
     *.tar.gz | *.tgz) tar -xzf "$file" -C "$opt" || { record_failure "$name" 'extract failed'; return 0; } ;;
     *.tar.xz) tar -xJf "$file" -C "$opt" || { record_failure "$name" 'extract failed'; return 0; } ;;
-    *) cp "$file" "$opt/$bin" ;;
+    *) cp "$file" "$opt/$bin"; chmod 0755 "$opt/$bin" ;;
   esac
 
   # For archives, find the requested bin inside and symlink it (launchers

@@ -27,7 +27,7 @@ Commands:
   uninstall  Remove AutoInstallTools-managed files
 
 Install/list options:
-  --profile NAME     one of: minimal web api mobile code vps full ai
+  --profile NAME     one of: minimal web api mobile code vps all ai
   --with a,b         add tools or tags on top of the profile
   --without a,b      remove tools or tags from the profile
   --dry-run          (install) show what would happen, change nothing
@@ -141,6 +141,7 @@ _uninstall_one() {
   for p in "${_pp[@]}"; do
     case "$p" in
       pipx:*) pipx_uninstall "${p#pipx:}" ;;
+      uv:*)   command -v uv >/dev/null && { uv tool uninstall "${p#uv:}" || true; } ;;
       npm:*)  command -v npm >/dev/null && { npm rm -g "${p#npm:}" || true; } ;;
       cargo:*) command -v cargo >/dev/null && { cargo uninstall "${p#cargo:}" 2>/dev/null || true; } ;;
       runtime:*) warn "$tool: leaving runtime '${p#runtime:}' in place" ;;
@@ -199,7 +200,7 @@ ait_doctor() {
   local json=0; [[ "${1:-}" == --json ]] && json=1
   bootstrap_yq
   ((json)) && printf '['
-  local first=1 name method desc bin status ver chk
+  local first=1 name method desc bin status ver want chk
   while IFS=$'\t' read -r name _ method desc _ bin; do
     [[ -z "$name" ]] && continue
     if ! command -v "$bin" >/dev/null 2>&1; then
@@ -209,8 +210,14 @@ ait_doctor() {
       if [[ -n "$chk" ]]; then
         if timeout 10 bash -c "$chk" >/dev/null 2>&1; then status=ok; else status=broken; fi
       else status=ok; fi
-      if [[ "$method" == github_release || "$method" == official_archive ]] && [[ -z "$(catalog_tool_field "$name" version)" ]]; then
-        [[ "$status" == ok ]] && status=unpinned
+      want=$(catalog_tool_field "$name" version)
+      ver=$(manifest_field "$name" 3 2>/dev/null); ver=${ver:--}
+      if [[ "$method" == github_release || "$method" == official_archive ]]; then
+        if [[ -z "$want" ]]; then
+          [[ "$status" == ok ]] && status=unpinned
+        elif [[ -n "$ver" && "$ver" != - && "$ver" != "$want" ]]; then
+          [[ "$status" == ok ]] && status=outdated
+        fi
       fi
     fi
     ver=$(manifest_field "$name" 3 2>/dev/null); ver=${ver:--}
@@ -218,7 +225,7 @@ ait_doctor() {
       ((first)) || printf ','; first=0
       printf '{"name":"%s","status":"%s","version":"%s"}' "$name" "$status" "$ver"
     else
-      printf '%-24s %-10s %s\n' "$name" "$status" "$desc"
+      printf '%-24s %-10s %-12s %s\n' "$name" "$status" "$ver" "$desc"
     fi
   done < <(catalog_tools_tsv)
   ((json)) && { printf ']\n'; return 0; }
@@ -235,19 +242,40 @@ ait_doctor() {
   fi
   local tdir="$HOME/.local/nuclei-templates"
   if [[ -d "$tdir" && -n "$(find "$tdir" -maxdepth 0 -mtime +14 2>/dev/null)" ]]; then warn 'nuclei templates >14 days old (ait update)'; fi
+  if command -v frida >/dev/null 2>&1 && command -v adb >/dev/null 2>&1; then
+    local hv dv
+    hv=$(frida --version 2>/dev/null || true)
+    dv=$(adb shell frida-server --version 2>/dev/null | tr -d '\r' || true)
+    if [[ -n "$hv" && -n "$dv" && "$hv" != "$dv" ]]; then
+      warn "Frida host ($hv) and device server ($dv) versions differ"
+    elif [[ -n "$hv" ]]; then ok "Frida host: $hv"; fi
+  fi
+  local free_kb
+  free_kb=$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')
+  if [[ "$free_kb" =~ ^[0-9]+$ ]] && ((free_kb < 5 * 1024 * 1024)); then
+    warn "Low disk space: $((free_kb / 1024)) MiB free in $HOME"
+  fi
   return 0
 }
 
 ait_update() {
-  while (($#)); do case "$1" in --dry-run) DRY_RUN=1; shift ;; -h | --help) usage; exit 0 ;; *) die "Unknown option: $1" ;; esac; done
+  local tools=''
+  while (($#)); do case "$1" in
+    --dry-run) DRY_RUN=1; shift ;;
+    --tools) tools=$2; shift 2 ;;
+    --tools=*) tools=${1#*=}; shift ;;
+    -h | --help) usage; exit 0 ;;
+    *) die "Unknown option: $1" ;;
+  esac; done
   require_linux; bootstrap_yq; init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
   export FORCE_INSTALL=1
-  local t
+  local t list
+  if [[ -n "$tools" ]]; then list=$(tr ',' '\n' <<< "$tools"); else list=$(manifest_tools); fi
   while IFS= read -r t; do
     [[ -z "$t" ]] && continue
     catalog_tool_exists "$t" || { warn "$t: not in catalog; skipping"; continue; }
     log "Updating $t"; install_tool "$t" || record_failure "$t" 'update error'
-  done <<< "$(manifest_tools)"
+  done <<< "$list"
   command -v pdtm >/dev/null && { pdtm -ua || true; }
   command -v nuclei >/dev/null && { nuclei -update-templates || true; }
   report_failures

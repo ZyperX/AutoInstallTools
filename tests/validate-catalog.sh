@@ -13,7 +13,7 @@ bootstrap_yq >/dev/null
 
 fail=0
 bad() { echo "SCHEMA: $*" >&2; fail=1; }
-known_methods=' apt go github_release pipx npm cargo git git_venv docker official_archive wget_mirror runtime manual '
+known_methods=' apt go github_release uv pipx npm cargo git git_venv docker official_archive wget_mirror runtime manual '
 known_tags=' core runtime recon web api mobile code cloud wordlists ai '
 known_categories=' core runtime recon proxy discovery vuln api js-secrets sast-sca android ios reversing wordlists cloud container ai '
 
@@ -49,15 +49,18 @@ while IFS=$'\t' read -r name tags method desc optin naptn go repo pypi npm crate
     git_venv)       [[ "$git" != - && "$dest" != - ]] || bad "$name: git_venv needs 'git' and 'dest'" ;;
     docker)         [[ "$image" != - ]] || bad "$name: docker needs 'image'" ;;
     official_archive) [[ ( "$repo" != - && "$asset" != - ) || "$url" != - ]] || bad "$name: official_archive needs repo+asset or url" ;;
+    uv)             [[ "$pypi" != - ]]   || bad "$name: uv needs 'pypi'" ;;
   esac
 # Default optional fields to "-" so no column is ever empty: with a tab IFS,
 # empty fields would otherwise collapse and shift every later column.
 done < <("$YQ" '.tools[] | [
     .name, (.tags | join(",")), .method, .desc, (.opt_in // false),
     ((.apt // []) | length), (.go // "-"), (.repo // "-"), (.pypi // "-"),
-    (.npm // "-"), (.crate // "-"), (.git // "-"), (.url // "-"), (.dest // "-"),
+    (.npm // "-"), (.crate // "-"), (.git // "-"),
+    (if (.url | type) == "!!str" then .url elif (.url | type) == "!!map" then "map" else "-" end), (.dest // "-"),
     (.runtime // "-"), (.category // "-"), (.gui // false),
-    (.asset // "-"), (.image // "-")] | @tsv' "$TOOLS_YAML")
+    (if (.asset | type) == "!!str" then .asset elif (.asset | type) == "!!map" then "map" else "-" end),
+    (.image // "-")] | @tsv' "$TOOLS_YAML")
 
 # Profiles reference only known tags.
 while IFS= read -r p; do

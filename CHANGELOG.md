@@ -6,6 +6,26 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Phase 2C — Catalog completion
+
+#### Added
+- The full curated catalog from the spec: Caido CLI/desktop, ZAP, Burp (manual),
+  GraphQL tooling, CodeQL/Opengrep/Semgrep, sourcemapper, Hurl, Medusa, bagbak,
+  Grapefruit, a resolver list, `whiptail`, `httpie` and `uro`.
+- Per-platform `asset`/`url` maps for `official_archive`, so vendor downloads
+  (Caido, CodeQL, Opengrep, Google platform-tools) pick the right arch.
+- `scripts/pin.sh` now records per-arch assets and checksums from GitHub asset
+  digests, upstream checksum files, or by hashing the asset when neither exists.
+  Most release tools are pinned and verified as a result.
+
+#### Changed
+- Profiles match the spec: `full` is now `all`, `web` includes API + code tools,
+  and `vps` never selects GUI tools.
+- Python tools use the `uv` method (pipx fallback), matching the spec.
+- The resolver filters by platform, orders runtimes/apt-deps first, and errors
+  with a suggested name on an unknown `--with`/`--without` value.
+- Google's upstream `platform-tools` and the official `apktool` jar replace apt.
+
 ### Phase 1 — Catalog engine
 
 Adds the declarative catalog and the `ait` CLI. Install methods, checksum

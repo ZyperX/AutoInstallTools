@@ -24,5 +24,5 @@ pipx_uninstall() {
   if command -v uv >/dev/null 2>&1 && uv tool list 2>/dev/null | awk '{print $1}' | grep -Fqx "$1"; then
     uv tool uninstall "$1" || true; return 0
   fi
-  command -v pipx >/dev/null && pipx uninstall "$1" || true
+  if command -v pipx >/dev/null; then pipx uninstall "$1" || true; fi
 }

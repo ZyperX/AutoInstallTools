@@ -20,8 +20,8 @@ manifest_add() {
 }
 
 manifest_has()   { local mf; mf=$(manifest_file); [[ -f "$mf" ]] && grep -qP "^$1\t" "$mf"; }
-manifest_tools() { local mf; mf=$(manifest_file); [[ -f "$mf" ]] && cut -f1 "$mf" || true; }
-manifest_row()   { local mf; mf=$(manifest_file); [[ -f "$mf" ]] && grep -P "^$1\t" "$mf" | head -n1 || true; }
+manifest_tools() { local mf; mf=$(manifest_file); if [[ -f "$mf" ]]; then cut -f1 "$mf"; fi; }
+manifest_row()   { local mf; mf=$(manifest_file); [[ -f "$mf" ]] || return 0; { grep -P "^$1\t" "$mf" || true; } | head -n1; }
 manifest_field() { # <tool> <1-based col>
   manifest_row "$1" | cut -f"$2"
 }

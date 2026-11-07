@@ -199,11 +199,11 @@ ait_doctor() {
   local json=0; [[ "${1:-}" == --json ]] && json=1
   bootstrap_yq
   ((json)) && printf '['
-  local first=1 name tagcsv method desc optin bin status ver chk
-  while IFS=$'\t' read -r name tagcsv method desc optin bin; do
+  local first=1 name method desc bin status ver chk
+  while IFS=$'\t' read -r name _ method desc _ bin; do
     [[ -z "$name" ]] && continue
     if ! command -v "$bin" >/dev/null 2>&1; then
-      manifest_has "$name" && status=missing || continue
+      if manifest_has "$name"; then status=missing; else continue; fi
     else
       chk=$(catalog_tool_field "$name" check)
       if [[ -n "$chk" ]]; then
@@ -224,7 +224,7 @@ ait_doctor() {
   ((json)) && { printf ']\n'; return 0; }
 
   case ":$PATH:" in *":$BIN_DIR:"*) ok "PATH has $BIN_DIR" ;; *) warn "$BIN_DIR not on PATH" ;; esac
-  case ":$PATH:" in *":$HOME/go/bin:"*) ok 'PATH has ~/go/bin' ;; *) warn '~/go/bin not on PATH' ;; esac
+  case ":$PATH:" in *":$HOME/go/bin:"*) ok "PATH has $HOME/go/bin" ;; *) warn "$HOME/go/bin not on PATH" ;; esac
   if is_wsl; then
     ok 'WSL detected'
     if [[ -d /mnt/wslg ]]; then ok 'WSLg present (GUI apps supported)'; else warn 'WSLg not detected'; fi

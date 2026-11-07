@@ -34,6 +34,7 @@ jobs:
           apt-get update
           apt-get install -y sudo curl jq git ca-certificates unzip
       - name: Install profile (device/GUI steps allowed to fail)
+        shell: bash
         run: |
           set -o pipefail
           ./ait install --profile ${{ matrix.profile }} --yes 2>&1 | tee install.log || true

@@ -36,10 +36,9 @@ _record_generic() {
 }
 
 install_tool() {
-  local name=$1 method installed_before
+  local name=$1 method bin
   method=$(catalog_tool_field "$name" method)
-  local bin; bin=$(catalog_tool_bin "$name")
-  command -v "$bin" >/dev/null 2>&1 && installed_before=1 || installed_before=0
+  bin=$(catalog_tool_bin "$name")
 
   case "$method" in
     apt)

@@ -13,12 +13,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
-
+      - name: Install shellcheck and bats
+        run: sudo apt-get update && sudo apt-get install -y shellcheck bats
       - name: Lint
         run: make lint
-
-      - name: Validate catalog, resolver & dry-run
+      - name: Catalog, resolver, checksum, manifest & dry-run
         run: make test
+
+  integration:
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [mobile, web]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Base packages
+        run: |
+          apt-get update
+          apt-get install -y sudo curl jq git ca-certificates unzip
+      - name: Install profile (device/GUI steps allowed to fail)
+        run: |
+          set -o pipefail
+          ./ait install --profile ${{ matrix.profile }} --yes 2>&1 | tee install.log || true
+          # Surface any recorded failures as a summary artifact, but don't fail
+          # the job on GUI-only / device-only tools.
+          grep -i 'could not be installed' -A50 install.log > failures.txt || echo "none" > failures.txt
+      - name: Upload failure summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-failures-${{ matrix.profile }}
+          path: failures.txt

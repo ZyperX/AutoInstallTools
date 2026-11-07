@@ -179,6 +179,14 @@ tools:
     runtime: node
     bin: node
     check: node --version
+  - name: uv
+    desc: Fast Python package & tool manager
+    category: runtime
+    tags: [runtime]
+    method: runtime
+    runtime: uv
+    bin: uv
+    check: uv --version
   - name: pnpm
     desc: Fast, disk-efficient npm alternative
     category: runtime
@@ -572,6 +580,7 @@ tools:
     tags: [mobile]
     method: official_archive
     repo: skylot/jadx
+    asset: 'jadx-*.zip'
     bin: jadx
   - name: jadx-gui
     desc: DEX to Java decompiler (GUI)
@@ -580,6 +589,7 @@ tools:
     gui: true
     method: official_archive
     repo: skylot/jadx
+    asset: 'jadx-*.zip'
     bin: jadx-gui
   - name: droidasc
     desc: Fast on-demand APK search & decompile
@@ -607,6 +617,7 @@ tools:
     tags: [mobile]
     method: official_archive
     repo: patrickfav/uber-apk-signer
+    asset: 'uber-apk-signer-*.jar'
     bin: uber-apk-signer
   - name: reflutter
     desc: Flutter app traffic interception
@@ -653,7 +664,10 @@ tools:
     tags: [mobile]
     opt_in: true
     method: docker
-    notes: Runs as a Docker container (opdemand/mobsf image).
+    image: opensecurity/mobile-security-framework-mobsf:latest
+    docker_args: -p 8000:8000
+    bin: mobsf
+    notes: Web UI on http://localhost:8000 once started.
 
   # ================= iOS (host side) =================
   - name: libimobiledevice
@@ -687,6 +701,7 @@ tools:
     opt_in: true
     method: official_archive
     repo: NationalSecurityAgency/ghidra
+    asset: 'ghidra_*_PUBLIC_*.zip'
     bin: ghidraRun
     notes: Large; needs JDK 21. Opt-in via --with ghidra.
 

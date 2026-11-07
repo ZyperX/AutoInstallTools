@@ -23,7 +23,7 @@ dupes=$(catalog_tool_names | sort | uniq -d)
 
 # One pass: name, tags, method, desc, optin, apt-count, go, repo, pypi, npm,
 # crate, git, url, dest, runtime.
-while IFS=$'\t' read -r name tags method desc optin naptn go repo pypi npm crate git url dest runtime category gui; do
+while IFS=$'\t' read -r name tags method desc optin naptn go repo pypi npm crate git url dest runtime category gui asset image; do
   [[ -z "$name" ]] && continue
   [[ -n "$desc" ]] || bad "$name: missing desc"
   ((${#desc} <= 48)) || bad "$name: desc is ${#desc} chars (>48): $desc"
@@ -46,6 +46,9 @@ while IFS=$'\t' read -r name tags method desc optin naptn go repo pypi npm crate
     git)            [[ "$git" != - && "$dest" != - ]] || bad "$name: git needs 'git' and 'dest'" ;;
     wget_mirror)    [[ "$url" != - && "$dest" != - ]] || bad "$name: wget_mirror needs 'url' and 'dest'" ;;
     runtime)        [[ "$runtime" != - ]] || bad "$name: runtime needs 'runtime'" ;;
+    git_venv)       [[ "$git" != - && "$dest" != - ]] || bad "$name: git_venv needs 'git' and 'dest'" ;;
+    docker)         [[ "$image" != - ]] || bad "$name: docker needs 'image'" ;;
+    official_archive) [[ ( "$repo" != - && "$asset" != - ) || "$url" != - ]] || bad "$name: official_archive needs repo+asset or url" ;;
   esac
 # Default optional fields to "-" so no column is ever empty: with a tab IFS,
 # empty fields would otherwise collapse and shift every later column.
@@ -53,7 +56,8 @@ done < <("$YQ" '.tools[] | [
     .name, (.tags | join(",")), .method, .desc, (.opt_in // false),
     ((.apt // []) | length), (.go // "-"), (.repo // "-"), (.pypi // "-"),
     (.npm // "-"), (.crate // "-"), (.git // "-"), (.url // "-"), (.dest // "-"),
-    (.runtime // "-"), (.category // "-"), (.gui // false)] | @tsv' "$TOOLS_YAML")
+    (.runtime // "-"), (.category // "-"), (.gui // false),
+    (.asset // "-"), (.image // "-")] | @tsv' "$TOOLS_YAML")
 
 # Profiles reference only known tags.
 while IFS= read -r p; do
@@ -63,6 +67,14 @@ while IFS= read -r p; do
     [[ "$known_tags" == *" $t "* ]] || bad "profile $p: unknown tag '$t'"
   done < <(catalog_profile_tags "$p")
 done < <(catalog_profiles)
+
+# Pinned entries (have a version) must also carry a checksum.
+while IFS= read -r t; do
+  [[ -z "$t" ]] && continue
+  if [[ -z "$(catalog_tool_field "$t" sha256)" && -z "$(catalog_tool_field "$t" checksum_file)" ]]; then
+    bad "$t: pinned (has version) but no sha256/checksum_file"
+  fi
+done < <("$YQ" '.tools[] | select(.version != null) | .name' "$TOOLS_YAML")
 
 if ((fail)); then echo "catalog validation FAILED" >&2; exit 1; fi
 echo "catalog validation passed ($(catalog_tool_names | wc -l | tr -d ' ') tools)"

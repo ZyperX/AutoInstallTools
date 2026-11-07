@@ -6,9 +6,13 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=lib/common.sh
 source "$ROOT/lib/common.sh"
-for _lib in apt golang cargo node npm pipx github awscli catalog dispatch; do
+for _lib in apt golang cargo node npm pipx github awscli verify manifest catalog dispatch; do
   # shellcheck disable=SC1090
   source "$ROOT/lib/$_lib.sh"
+done
+for _m in github_release uv git_venv docker official_archive manual; do
+  # shellcheck disable=SC1090
+  source "$ROOT/lib/methods/$_m.sh"
 done
 
 usage() {
@@ -117,7 +121,7 @@ ait_install() {
     read -r -p "Proceed? [y/N] " a; [[ "$a" =~ ^[Yy]$ ]] || exit 0
   fi
 
-  init_paths; acquire_lock; trap release_lock EXIT; begin_failure_report
+  init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
   export PROFILE
   local name
   while IFS= read -r name; do
@@ -129,17 +133,137 @@ ait_install() {
   report_failures
 }
 
+# Remove one manifest tool by its recorded method + paths.
+_uninstall_one() {
+  local tool=$1 apt_ok=$2 method paths p
+  method=$(manifest_field "$tool" 2); paths=$(manifest_field "$tool" 4)
+  IFS=',' read -ra _pp <<< "$paths"
+  for p in "${_pp[@]}"; do
+    case "$p" in
+      pipx:*) pipx_uninstall "${p#pipx:}" ;;
+      npm:*)  command -v npm >/dev/null && { npm rm -g "${p#npm:}" || true; } ;;
+      cargo:*) command -v cargo >/dev/null && { cargo uninstall "${p#cargo:}" 2>/dev/null || true; } ;;
+      runtime:*) warn "$tool: leaving runtime '${p#runtime:}' in place" ;;
+      apt:*)
+        local pk=${p#apt:}; pk=${pk//,/ }
+        if ((apt_ok)); then
+          # shellcheck disable=SC2086  # intentional word-split: multiple packages
+          run sudo apt-get remove -y $pk || true
+        else warn "$tool: apt packages left in place (use --apt): $pk"; fi ;;
+      '' | '-') : ;;
+      *) run rm -rf -- "$p" ;;
+    esac
+  done
+  manifest_remove_row "$tool"
+  ok "Removed $tool"
+}
+
+ait_uninstall() {
+  local all=0 apt_ok=0 tools=''
+  while (($#)); do case "$1" in
+    --all) all=1; shift ;;
+    --tools) tools=$2; shift 2 ;;
+    --tools=*) tools=${1#*=}; shift ;;
+    --apt) apt_ok=1; shift ;;
+    --yes | -y) ASSUME_YES=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    -h | --help) usage; exit 0 ;;
+    *) die "Unknown option: $1" ;;
+  esac; done
+  manifest_init
+  local list
+  if ((all)); then list=$(manifest_tools)
+  elif [[ -n "$tools" ]]; then list=$(tr ',' '\n' <<< "$tools")
+  else die 'uninstall needs --all or --tools a,b'; fi
+  [[ -n "$list" ]] || { log 'Nothing recorded in the manifest to remove.'; return 0; }
+
+  log 'Will remove:'; printf '%s\n' "$list" | sed 's/^/  - /'
+  if ((${ASSUME_YES:-0} == 0)) && ! dryrun && [[ -t 0 && ${CI:-} != true ]]; then
+    read -r -p 'Proceed? [y/N] ' a; [[ "$a" =~ ^[Yy]$ ]] || exit 0
+  fi
+  local t
+  while IFS= read -r t; do
+    [[ -z "$t" ]] && continue
+    manifest_has "$t" || { warn "$t: not in manifest; skipping"; continue; }
+    _uninstall_one "$t" "$apt_ok"
+  done <<< "$list"
+
+  if ((all)) && ! dryrun; then
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+      [[ -f "$rc" ]] && sed -i '/# >>> AIT >>>/,/# <<< AIT <<</d' "$rc"
+    done
+  fi
+}
+
+ait_doctor() {
+  local json=0; [[ "${1:-}" == --json ]] && json=1
+  bootstrap_yq
+  ((json)) && printf '['
+  local first=1 name tagcsv method desc optin bin status ver chk
+  while IFS=$'\t' read -r name tagcsv method desc optin bin; do
+    [[ -z "$name" ]] && continue
+    if ! command -v "$bin" >/dev/null 2>&1; then
+      manifest_has "$name" && status=missing || continue
+    else
+      chk=$(catalog_tool_field "$name" check)
+      if [[ -n "$chk" ]]; then
+        if timeout 10 bash -c "$chk" >/dev/null 2>&1; then status=ok; else status=broken; fi
+      else status=ok; fi
+      if [[ "$method" == github_release || "$method" == official_archive ]] && [[ -z "$(catalog_tool_field "$name" version)" ]]; then
+        [[ "$status" == ok ]] && status=unpinned
+      fi
+    fi
+    ver=$(manifest_field "$name" 3 2>/dev/null); ver=${ver:--}
+    if ((json)); then
+      ((first)) || printf ','; first=0
+      printf '{"name":"%s","status":"%s","version":"%s"}' "$name" "$status" "$ver"
+    else
+      printf '%-24s %-10s %s\n' "$name" "$status" "$desc"
+    fi
+  done < <(catalog_tools_tsv)
+  ((json)) && { printf ']\n'; return 0; }
+
+  case ":$PATH:" in *":$BIN_DIR:"*) ok "PATH has $BIN_DIR" ;; *) warn "$BIN_DIR not on PATH" ;; esac
+  case ":$PATH:" in *":$HOME/go/bin:"*) ok 'PATH has ~/go/bin' ;; *) warn '~/go/bin not on PATH' ;; esac
+  if is_wsl; then
+    ok 'WSL detected'
+    if [[ -d /mnt/wslg ]]; then ok 'WSLg present (GUI apps supported)'; else warn 'WSLg not detected'; fi
+  fi
+  if command -v adb >/dev/null 2>&1; then
+    local devs; devs=$(adb devices 2>/dev/null | grep -cE "$(printf '\t')device$" || true)
+    if ((devs > 0)); then ok "adb: $devs device(s) connected"; else warn 'adb: no devices connected'; fi
+  fi
+  local tdir="$HOME/.local/nuclei-templates"
+  if [[ -d "$tdir" && -n "$(find "$tdir" -maxdepth 0 -mtime +14 2>/dev/null)" ]]; then warn 'nuclei templates >14 days old (ait update)'; fi
+  return 0
+}
+
+ait_update() {
+  while (($#)); do case "$1" in --dry-run) DRY_RUN=1; shift ;; -h | --help) usage; exit 0 ;; *) die "Unknown option: $1" ;; esac; done
+  require_linux; bootstrap_yq; init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
+  export FORCE_INSTALL=1
+  local t
+  while IFS= read -r t; do
+    [[ -z "$t" ]] && continue
+    catalog_tool_exists "$t" || { warn "$t: not in catalog; skipping"; continue; }
+    log "Updating $t"; install_tool "$t" || record_failure "$t" 'update error'
+  done <<< "$(manifest_tools)"
+  command -v pdtm >/dev/null && { pdtm -ua || true; }
+  command -v nuclei >/dev/null && { nuclei -update-templates || true; }
+  report_failures
+}
+
 main() {
   local cmd=${1:-}
   (($#)) && shift
   case "$cmd" in
     list) ait_list "$@" ;;
     install) ait_install "$@" ;;
-    doctor) exec "$ROOT/doctor.sh" "$@" ;;
-    update) exec "$ROOT/update.sh" "$@" ;;
-    uninstall) exec "$ROOT/uninstall.sh" "$@" ;;
-    ''|menu) warn 'The interactive menu arrives in a later phase; use: ait install --profile ...'; usage; exit 0 ;;
-    -h|--help|help) usage ;;
+    doctor) ait_doctor "$@" ;;
+    update) ait_update "$@" ;;
+    uninstall) ait_uninstall "$@" ;;
+    '' | menu) warn 'The interactive menu arrives in a later phase; use: ait install --profile ...'; usage; exit 0 ;;
+    -h | --help | help) usage ;;
     *) die "Unknown command: $cmd (try: ait --help)" ;;
   esac
 }

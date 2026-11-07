@@ -68,25 +68,33 @@ github_install_latest() (
   retry curl -fL --retry 3 -o "$tmp/asset" "$url" || { record_failure "$binname" 'release download failed'; return 0; }
 
   _gh_verify_checksum "$json" "$name" "$tmp/asset" "$binname" || return 0
-
-  mkdir -p "$tmp/ex"
-  case "$name" in
-    *.tar.gz | *.tgz) tar -xzf "$tmp/asset" -C "$tmp/ex" ;;
-    *.tar.xz) tar -xJf "$tmp/asset" -C "$tmp/ex" ;;
-    *.tar.bz2) tar -xjf "$tmp/asset" -C "$tmp/ex" ;;
-    *.zip) unzip -q "$tmp/asset" -d "$tmp/ex" ;;
-    *) cp "$tmp/asset" "$tmp/ex/$binname" ;;
-  esac || { record_failure "$binname" 'could not extract release archive'; return 0; }
-
-  local bin
-  bin=$(find "$tmp/ex" -type f -name "$binname" 2>/dev/null | head -n1)
-  [[ -z "$bin" ]] && bin=$(find "$tmp/ex" -type f -name "${binname}*" ! -name '*.*' 2>/dev/null | head -n1)
-  [[ -z "$bin" ]] && bin=$(find "$tmp/ex" -type f ! -name '*.*' -size +20k 2>/dev/null | head -n1)
-  [[ -n "$bin" ]] || { record_failure "$binname" 'could not identify executable in release archive'; return 0; }
-
-  install -D -m 0755 "$bin" "$dest" || { record_failure "$binname" 'could not place executable'; return 0; }
+  gh_install_from_file "$tmp/asset" "$name" "$binname" "$dest" || return 0
   ok "Installed $binname ($name)"
 )
+
+# gh_install_from_file <file> <asset-name> <binname> <dest>
+# Extract (or copy) a downloaded asset and place the executable at dest.
+gh_install_from_file() {
+  local file=$1 aname=$2 binname=$3 dest=$4 ex bin
+  ex=$(mktemp -d)
+  case "$aname" in
+    *.tar.gz | *.tgz) tar -xzf "$file" -C "$ex" ;;
+    *.tar.xz) tar -xJf "$file" -C "$ex" ;;
+    *.tar.bz2) tar -xjf "$file" -C "$ex" ;;
+    *.zip) unzip -q "$file" -d "$ex" ;;
+    *.gz) gunzip -c "$file" > "$ex/$binname" ;;
+    *) cp "$file" "$ex/$binname" ;;
+  esac || { rm -rf -- "$ex"; record_failure "$binname" 'could not extract release asset'; return 1; }
+
+  bin=$(find "$ex" -type f -name "$binname" 2>/dev/null | head -n1)
+  [[ -z "$bin" ]] && bin=$(find "$ex" -type f -name "${binname}*" ! -name '*.*' 2>/dev/null | head -n1)
+  [[ -z "$bin" ]] && bin=$(find "$ex" -type f ! -name '*.*' -size +20k 2>/dev/null | head -n1)
+  [[ -n "$bin" ]] || { rm -rf -- "$ex"; record_failure "$binname" 'could not identify executable in asset'; return 1; }
+
+  install -D -m 0755 "$bin" "$dest" || { rm -rf -- "$ex"; record_failure "$binname" 'could not place executable'; return 1; }
+  rm -rf -- "$ex"
+  return 0
+}
 
 # _gh_verify_checksum <release-json> <asset-name> <file> <binname>
 # Verifies <file> against an upstream checksum if the release publishes one.

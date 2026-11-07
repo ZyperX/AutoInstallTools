@@ -75,6 +75,16 @@ require_linux() {
 
 is_wsl() { grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null; }
 
+# Platform key for per-arch pinning maps (asset / sha256).
+plat_key() {
+  case "$(uname -s)-$(uname -m)" in
+    Linux-x86_64) echo linux_amd64 ;;
+    Linux-aarch64 | Linux-arm64) echo linux_arm64 ;;
+    Darwin-arm64) echo darwin_arm64 ;;
+    *) return 1 ;;
+  esac
+}
+
 acquire_lock() {
   exec 9>"$STATE_DIR/install.lock"
   flock -n 9 || die 'Another bootstrap process is running.'

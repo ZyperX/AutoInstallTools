@@ -3,7 +3,8 @@ SHELL := bash
 # All first-party shell scripts. config/ snippets are sourced into interactive
 # shells (bash/zsh) and are linted separately if needed.
 SCRIPTS := install.sh update.sh doctor.sh uninstall.sh \
-           $(wildcard lib/*.sh) $(wildcard modules/*.sh) $(wildcard tests/*.sh)
+           $(wildcard lib/*.sh) $(wildcard lib/methods/*.sh) $(wildcard modules/*.sh) \
+           $(wildcard scripts/*.sh) $(wildcard tests/*.sh)
 
 .PHONY: help lint test
 
@@ -17,6 +18,7 @@ lint:
 	shellcheck -x -e SC1090,SC1091 ait $(SCRIPTS)
 
 test: lint
-	bash tests/validate-catalog.sh
-	bash tests/resolver.sh
+	@if command -v bats >/dev/null 2>&1; then bats tests/*.bats; \
+	else echo "bats not found; running shell tests directly"; \
+	     bash tests/validate-catalog.sh && bash tests/resolver.sh; fi
 	bash tests/dry-run.sh

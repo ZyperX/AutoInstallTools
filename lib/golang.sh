@@ -23,7 +23,9 @@ _go_recent_enough() {
   ((major > 1)) || { ((major == 1)) && ((minor >= 21)); }
 }
 
-install_go_toolchain() {
+# Subshell function: a tmp-cleanup EXIT trap stays scoped here and cannot leak
+# to later function returns.
+install_go_toolchain() (
   if command -v go >/dev/null 2>&1 && _go_recent_enough; then
     ok "Go $(go version | awk '{print $3}') already present; skipping"
     return 0
@@ -51,7 +53,7 @@ install_go_toolchain() {
   [[ -n "$file" && -n "$sha" && "$sha" != null ]] || {
     record_failure 'go' 'no stable Go release found for this platform'; return 0; }
 
-  local tmp; tmp=$(mktemp -d); trap 'rm -rf -- "$tmp"' RETURN
+  local tmp; tmp=$(mktemp -d); trap 'rm -rf -- "$tmp"' EXIT
   retry curl -fL --retry 3 -o "$tmp/go.tgz" "https://go.dev/dl/$file" || {
     record_failure 'go' 'Go tarball download failed'; return 0; }
   echo "$sha  $tmp/go.tgz" | sha256sum -c - >/dev/null 2>&1 || {
@@ -64,7 +66,7 @@ install_go_toolchain() {
   ln -sf "$HOME/.local/go/bin/go" "$BIN_DIR/go"
   ln -sf "$HOME/.local/go/bin/gofmt" "$BIN_DIR/gofmt"
   ok "Installed $("$HOME/.local/go/bin/go" version | awk '{print $3}')"
-}
+)
 
 go_install() {
   local package=$1

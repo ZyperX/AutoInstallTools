@@ -9,12 +9,14 @@ SCRIPTS := install.sh update.sh doctor.sh uninstall.sh \
 
 help:
 	@echo "make lint  - shellcheck every script"
-	@echo "make test  - lint, then prove --dry-run changes nothing"
+	@echo "make test  - lint, validate the catalog, resolver + dry-run tests"
 
 lint:
 	@# SC1090/SC1091 are 'cannot follow source' notices, not bug checks; the
 	@# dynamic module loader and runtime paths make them unavoidable here.
-	shellcheck -x -e SC1090,SC1091 $(SCRIPTS)
+	shellcheck -x -e SC1090,SC1091 ait $(SCRIPTS)
 
 test: lint
+	bash tests/validate-catalog.sh
+	bash tests/resolver.sh
 	bash tests/dry-run.sh

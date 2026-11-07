@@ -1,0 +1,450 @@
+# AutoInstallTools catalog — the single source of truth for every tool.
+#
+# Schema (per entry):
+#   name        required  command/identifier (unique)
+#   desc        required  <= 48 chars, shown in `ait list` and the menu
+#   tags        required  list; profiles select tools by tag
+#   method      required  one of: apt | go | github_release | pipx | npm |
+#                         cargo | git | wget_mirror | runtime
+#   bin         optional  command used for the "installed?" check (default: name)
+#   check       optional  command run by `ait doctor` to confirm it works
+#   opt_in      optional  true = never selected by a profile, only via --with
+#   platforms   optional  list; default [linux]
+#   notes       optional  free text
+# Method-specific keys:
+#   apt:        [packages]                 (apt)
+#   go:         module path (installed @latest)   (go)
+#   apt_deps:   [packages] built first      (go, for cgo system libs)
+#   repo:       owner/name                  (github_release)
+#   dest:       install path                (github_release, git)
+#   pypi:       PyPI name                   (pipx)
+#   npm:        npm package                 (npm)
+#   crate:      crate name                  (cargo)
+#   git:        clone URL                   (git)
+#   url:        mirror root URL             (wget_mirror)
+#   runtime:    go | rust | node            (runtime)
+
+tools:
+  # ---- Base / everyday CLI (core) ----
+  - name: base-essentials
+    desc: Base system packages & build toolchain
+    tags: [core]
+    method: apt
+    apt: [ca-certificates, gnupg, lsb-release, software-properties-common, build-essential, unzip, zip, wget]
+  - name: curl
+    desc: Transfer data over HTTP and more
+    tags: [core]
+    method: apt
+    apt: [curl]
+    check: curl --version
+  - name: git
+    desc: Distributed version control
+    tags: [core]
+    method: apt
+    apt: [git]
+    check: git --version
+  - name: jq
+    desc: Command-line JSON processor
+    tags: [core]
+    method: apt
+    apt: [jq]
+    check: jq --version
+  - name: yq
+    desc: YAML/JSON/XML processor (mikefarah)
+    tags: [core]
+    method: github_release
+    repo: mikefarah/yq
+    bin: yq
+    check: yq --version
+  - name: eza
+    desc: Modern ls replacement
+    tags: [core]
+    method: github_release
+    repo: eza-community/eza
+    bin: eza
+  - name: ripgrep
+    desc: Fast recursive grep
+    tags: [core]
+    method: apt
+    apt: [ripgrep]
+    bin: rg
+    check: rg --version
+  - name: fd
+    desc: Fast, friendly file finder
+    tags: [core]
+    method: apt
+    apt: [fd-find]
+    bin: fdfind
+    check: fdfind --version
+  - name: bat
+    desc: cat with syntax highlighting
+    tags: [core]
+    method: apt
+    apt: [bat]
+    bin: batcat
+    check: batcat --version
+  - name: tmux
+    desc: Terminal multiplexer
+    tags: [core]
+    method: apt
+    apt: [tmux]
+  - name: zoxide
+    desc: Smarter cd that learns your habits
+    tags: [core]
+    method: apt
+    apt: [zoxide]
+  - name: fzf
+    desc: Fuzzy finder for the terminal
+    tags: [core]
+    method: apt
+    apt: [fzf]
+  - name: ncdu
+    desc: Disk usage analyzer (TUI)
+    tags: [core]
+    method: apt
+    apt: [ncdu]
+  - name: btop
+    desc: Resource monitor (TUI)
+    tags: [core]
+    method: apt
+    apt: [btop]
+  - name: tree
+    desc: List directories as a tree
+    tags: [core]
+    method: apt
+    apt: [tree]
+  - name: socat
+    desc: Multipurpose relay / socket tool
+    tags: [core]
+    method: apt
+    apt: [socat]
+
+  # ---- Runtimes ----
+  - name: python
+    desc: Python 3 with pip and pipx
+    tags: [runtime]
+    method: apt
+    apt: [python3, python3-pip, pipx]
+    bin: python3
+    check: python3 --version
+  - name: jdk
+    desc: JDK 21 with Maven and Gradle
+    tags: [runtime]
+    method: apt
+    apt: [openjdk-21-jdk, maven, gradle]
+    bin: java
+    check: java -version
+  - name: go
+    desc: Go toolchain (official tarball)
+    tags: [runtime]
+    method: runtime
+    runtime: go
+    bin: go
+    check: go version
+  - name: rust
+    desc: Rust toolchain via rustup
+    tags: [runtime]
+    method: runtime
+    runtime: rust
+    bin: cargo
+  - name: node
+    desc: Node.js 22 LTS (NodeSource)
+    tags: [runtime]
+    method: runtime
+    runtime: node
+    bin: node
+    check: node --version
+  - name: pnpm
+    desc: Fast, disk-efficient npm alternative
+    tags: [runtime]
+    method: npm
+    npm: pnpm
+
+  # ---- Recon & attack surface ----
+  - name: subfinder
+    desc: Passive subdomain enumeration
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/subfinder/v2/cmd/subfinder
+    check: subfinder -version
+  - name: httpx
+    desc: HTTP probing & tech detection
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/httpx/cmd/httpx
+    check: httpx -version
+  - name: nuclei
+    desc: Template-based vulnerability scanner
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/nuclei/v3/cmd/nuclei
+    check: nuclei -version
+  - name: katana
+    desc: Fast crawler with JS parsing
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/katana/cmd/katana
+  - name: dnsx
+    desc: Fast DNS resolution & probing
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/dnsx/cmd/dnsx
+  - name: naabu
+    desc: Fast SYN/CONNECT port scanner
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/naabu/v2/cmd/naabu
+    apt_deps: [libpcap-dev]
+  - name: uncover
+    desc: Query Shodan/Censys/FOFA from CLI
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/uncover/cmd/uncover
+  - name: alterx
+    desc: Subdomain permutation generator
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/alterx/cmd/alterx
+  - name: shuffledns
+    desc: massdns wrapper for DNS brute force
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/shuffledns/cmd/shuffledns
+  - name: mapcidr
+    desc: CIDR/IP range manipulation
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/mapcidr/cmd/mapcidr
+  - name: assetfinder
+    desc: Find domains related to a target
+    tags: [recon]
+    method: go
+    go: github.com/tomnomnom/assetfinder
+  - name: waybackurls
+    desc: Fetch URLs from the Wayback Machine
+    tags: [recon]
+    method: go
+    go: github.com/tomnomnom/waybackurls
+  - name: gau
+    desc: Fetch known URLs from passive sources
+    tags: [recon]
+    method: go
+    go: github.com/lc/gau/v2/cmd/gau
+  - name: hakrawler
+    desc: Fast web crawler for endpoints
+    tags: [recon]
+    method: go
+    go: github.com/hakluke/hakrawler
+  - name: amass
+    desc: Deep OSINT subdomain enumeration
+    tags: [recon]
+    method: github_release
+    repo: owasp-amass/amass
+    bin: amass
+  - name: nmap
+    desc: Network & service scanner
+    tags: [core, recon]
+    method: apt
+    apt: [nmap, masscan]
+    bin: nmap
+  - name: rustscan
+    desc: Very fast port discovery
+    tags: [recon]
+    method: cargo
+    crate: rustscan
+
+  # ---- Content discovery, fuzzing & web ----
+  - name: sqlmap
+    desc: Automatic SQL injection testing
+    tags: [web, api]
+    method: apt
+    apt: [sqlmap]
+  - name: gobuster
+    desc: Directory/DNS/vhost brute forcing
+    tags: [web]
+    method: apt
+    apt: [gobuster]
+  - name: feroxbuster
+    desc: Recursive content discovery
+    tags: [web]
+    method: github_release
+    repo: epi052/feroxbuster
+    bin: feroxbuster
+    check: feroxbuster --version
+  - name: ffuf
+    desc: The general-purpose web fuzzer
+    tags: [web, api]
+    method: go
+    go: github.com/ffuf/ffuf/v2
+    check: ffuf -V
+  - name: dalfox
+    desc: XSS scanning & verification
+    tags: [web]
+    method: go
+    go: github.com/hahwul/dalfox/v2
+  - name: arjun
+    desc: HTTP parameter discovery
+    tags: [web, api]
+    method: pipx
+    pypi: arjun
+  - name: dirsearch
+    desc: Web path brute forcer
+    tags: [web]
+    method: pipx
+    pypi: dirsearch
+
+  # ---- Mobile (Android) ----
+  - name: android-platform-tools
+    desc: Android adb & fastboot (apt)
+    tags: [mobile]
+    method: apt
+    apt: [adb, fastboot]
+    bin: adb
+    check: adb version
+    notes: Phase 4 replaces this with Google's upstream platform-tools.
+  - name: apktool
+    desc: Decode, patch & rebuild APKs
+    tags: [mobile]
+    method: apt
+    apt: [apktool]
+    check: apktool --version
+  - name: frida-tools
+    desc: Dynamic instrumentation (Frida 17+)
+    tags: [mobile]
+    method: pipx
+    pypi: frida-tools
+    bin: frida
+    check: frida --version
+  - name: objection
+    desc: Runtime mobile exploration on Frida
+    tags: [mobile]
+    method: pipx
+    pypi: objection
+
+  # ---- Code review / SCA / containers ----
+  - name: trivy
+    desc: Container/IaC/FS & SBOM scanner
+    tags: [code, cloud]
+    method: github_release
+    repo: aquasecurity/trivy
+  - name: syft
+    desc: Generate SBOMs from images & dirs
+    tags: [code, cloud]
+    method: github_release
+    repo: anchore/syft
+  - name: grype
+    desc: Vulnerability matching from SBOMs
+    tags: [code, cloud]
+    method: github_release
+    repo: anchore/grype
+
+  # ---- Cloud / Kubernetes / containers ----
+  - name: awscli
+    desc: AWS CLI v2 (official installer)
+    tags: [cloud]
+    method: runtime
+    runtime: awscli
+    bin: aws
+  - name: k9s
+    desc: Kubernetes cluster TUI
+    tags: [cloud]
+    method: github_release
+    repo: derailed/k9s
+  - name: kubectx
+    desc: Switch kube contexts & namespaces
+    tags: [cloud]
+    method: github_release
+    repo: ahmetb/kubectx
+  - name: docker
+    desc: Container engine (docker.io)
+    tags: [cloud]
+    method: apt
+    apt: [docker.io]
+    bin: docker
+    check: docker --version
+  - name: docker-compose
+    desc: Compose v2 Docker CLI plugin
+    tags: [cloud]
+    method: github_release
+    repo: docker/compose
+    bin: docker-compose
+    dest: ~/.docker/cli-plugins/docker-compose
+  - name: lazydocker
+    desc: Docker management TUI
+    tags: [cloud]
+    method: github_release
+    repo: jesseduffield/lazydocker
+  - name: dive
+    desc: Inspect Docker image layers
+    tags: [cloud]
+    method: github_release
+    repo: wagoodman/dive
+
+  # ---- AI assistants (opt-in) ----
+  - name: claude-code
+    desc: Anthropic Claude Code CLI
+    tags: [ai]
+    opt_in: true
+    method: npm
+    npm: "@anthropic-ai/claude-code"
+    bin: claude
+  - name: opencode
+    desc: Open-source AI coding agent CLI
+    tags: [ai]
+    opt_in: true
+    method: npm
+    npm: opencode-ai
+    bin: opencode
+  - name: aider
+    desc: AI pair programming in your terminal
+    tags: [ai]
+    opt_in: true
+    method: pipx
+    pypi: aider-chat
+    bin: aider
+  - name: llm
+    desc: CLI for large language models
+    tags: [ai]
+    opt_in: true
+    method: pipx
+    pypi: llm
+  - name: shell-gpt
+    desc: LLM helper for the command line
+    tags: [ai]
+    opt_in: true
+    method: pipx
+    pypi: shell-gpt
+    bin: sgpt
+
+  # ---- Wordlists ----
+  - name: seclists
+    desc: The security tester's wordlist collection
+    tags: [wordlists]
+    method: git
+    git: https://github.com/danielmiessler/SecLists.git
+    dest: $WORDLISTS/SecLists
+  - name: payloadsallthethings
+    desc: Payloads & bypasses for web testing
+    tags: [wordlists]
+    method: git
+    git: https://github.com/swisskyrepo/PayloadsAllTheThings.git
+    dest: $WORDLISTS/PayloadsAllTheThings
+  - name: fuzzdb
+    desc: Attack patterns & discovery lists
+    tags: [wordlists]
+    method: git
+    git: https://github.com/fuzzdb-project/fuzzdb.git
+    dest: $WORDLISTS/FuzzDB
+  - name: onelistforall
+    desc: Merged content-discovery wordlist
+    tags: [wordlists]
+    method: git
+    git: https://github.com/six2dez/OneListForAll.git
+    dest: $WORDLISTS/OneListForAll
+  - name: assetnote
+    desc: Assetnote wordlists (large CDN mirror)
+    tags: [wordlists]
+    opt_in: true
+    method: wget_mirror
+    url: https://wordlists-cdn.assetnote.io/data/
+    dest: $WORDLISTS/assetnote

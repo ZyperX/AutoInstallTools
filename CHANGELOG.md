@@ -6,6 +6,30 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Phase 1 — Catalog engine
+
+Adds the declarative catalog and the `ait` CLI. Install methods, checksum
+pinning and manifest-based uninstall are formalised in Phase 2.
+
+#### Added
+- `ait` CLI: `list`, `install` (catalog-driven, honours `--profile`/`--with`/
+  `--without`/`--dry-run`/`--yes`), and wrappers for `doctor`/`update`/`uninstall`.
+- `catalog/tools.yaml` (70 tools ported from the modules) and
+  `catalog/profiles.yaml` (`minimal`/`web`/`api`/`mobile`/`code`/`vps`/`full`/`ai`).
+- `lib/catalog.sh`: bootstraps a pinned, sha256-verified `yq` and resolves
+  profiles/tags; `lib/dispatch.sh` maps each catalog method to its installer.
+- Tests: `tests/validate-catalog.sh` (schema: required fields, ≤48-char
+  descriptions, known methods/tags, unique names) and `tests/resolver.sh`
+  (profile selection, `--with`/`--without` by name and tag, opt-in exclusion).
+
+#### Fixed
+- `read`/TSV parsing: optional columns are kept non-empty so the tab IFS cannot
+  collapse adjacent empty fields and shift columns.
+- `install_go_toolchain`/`install_rust_toolchain`/`install_awscli_v2` are now
+  subshell functions so their tmp-cleanup `trap` cannot leak to later returns.
+- Catalog membership checks capture output before `grep -q` to avoid a pipefail
+  SIGPIPE false negative.
+
 ### Phase 0 — Hygiene
 
 Fixes the bugs catalogued as B1–B13 in [`PLAN.md`](PLAN.md) and adds basic repo

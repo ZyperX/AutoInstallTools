@@ -1,0 +1,13 @@
+# Profiles are bundles of catalog tags. `ait install --profile NAME` installs
+# every non-opt-in tool whose tags intersect the profile's tags.
+# `full` is the union of web + api + mobile + code (plus core/runtime/cloud);
+# `ai` is opt-in and never included by `full`.
+profiles:
+  minimal: [core, runtime]
+  web:     [core, runtime, recon, web, wordlists]
+  api:     [core, runtime, api]
+  mobile:  [core, runtime, mobile]
+  code:    [core, runtime, code]
+  vps:     [core, runtime, recon, wordlists]
+  full:    [core, runtime, recon, web, api, mobile, code, cloud, wordlists]
+  ai:      [ai]

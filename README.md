@@ -17,24 +17,27 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 
 > ### 🚧 Project status — pre-v1, under active construction
 >
-> This README describes the **target** design. What works **today** is the
-> script-based bootstrap:
+> This README describes the **target** design. What works **today**:
 >
 > ```bash
-> ./install.sh [--minimal|--full|--mobile] [--dry-run] [--no-shell]
-> ./update.sh        # refresh apt, runtimes, release tools, nuclei templates, wordlists
-> ./doctor.sh        # run each tool's health check
-> ./uninstall.sh     # remove only AutoInstallTools-managed user files
+> ./ait list                             # browse the catalog
+> ./ait list --profile web               # what a profile would install
+> ./ait install --profile web --dry-run  # resolve & preview (installs nothing)
+> ./ait install --profile mobile --with ghidra --without amass
+> ./ait doctor | ./ait update | ./ait uninstall
 > ```
 >
-> Release binaries are matched per-architecture and checksum-verified where
-> upstream publishes checksums, and `--dry-run` is fully honest (installs nothing).
+> The catalog ([`catalog/tools.yaml`](catalog/tools.yaml)) is the source of truth,
+> parsed with a pinned, checksum-verified `yq`; profiles (`minimal`, `web`, `api`,
+> `mobile`, `code`, `vps`, `full`, `ai`) resolve by tag with `--with`/`--without`.
+> Release binaries are matched per-architecture and checksum-verified where upstream
+> publishes checksums, and `--dry-run` is fully honest. The original
+> `./install.sh [--minimal|--full|--mobile]` bootstrap still works too.
 >
-> **Coming soon** (see [`PLAN.md`](PLAN.md)): the unified `ait` CLI and interactive
-> menu, the declarative [`catalog/tools.yaml`](catalog/tools.yaml), the
-> `web`/`api`/`code`/`vps`/`ai` profiles, `ait frida-server` / `ait proxy-ca`, the
-> WSL networking toggle, and the Windows companion. Commands shown below as
-> `ait …` are not available yet.
+> **Coming soon** (see [`PLAN.md`](PLAN.md)): verified `lib/methods/` with pinned
+> checksums and a manifest-based uninstall, the full curated catalog (iOS, Flutter,
+> GraphQL, SAST, …), the interactive menu, `ait frida-server` / `ait proxy-ca`, the
+> WSL networking toggle, and the Windows companion.
 
 ---
 

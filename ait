@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# AutoInstallTools CLI. Catalog-driven install/list, plus thin wrappers around
+# the existing doctor/update/uninstall scripts.
+set -Eeuo pipefail
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=lib/common.sh
+source "$ROOT/lib/common.sh"
+for _lib in apt golang cargo node npm pipx github awscli catalog dispatch; do
+  # shellcheck disable=SC1090
+  source "$ROOT/lib/$_lib.sh"
+done
+
+usage() {
+  cat <<'EOF'
+Usage: ait <command> [options]
+
+Commands:
+  list       Show the catalog (optionally filtered by profile)
+  install    Install a profile's tools (resolved from the catalog)
+  doctor     Check installed tools
+  update     Update apt, runtimes, release tools, templates & wordlists
+  uninstall  Remove AutoInstallTools-managed files
+
+Install/list options:
+  --profile NAME     one of: minimal web api mobile code vps full ai
+  --with a,b         add tools or tags on top of the profile
+  --without a,b      remove tools or tags from the profile
+  --dry-run          (install) show what would happen, change nothing
+  --yes              (install) do not prompt for confirmation
+  --no-shell         (install) skip editing your shell rc
+  --installed        (list) show only tools already present
+  --json             (list) machine-readable output
+
+Examples:
+  ait list
+  ait list --profile web
+  ait install --profile web --without amass --dry-run
+  ait install --profile mobile --with ghidra --yes
+EOF
+}
+
+# --- argument parsing shared by list/install ---
+PROFILE=''; WITH=''; WITHOUT=''; JSON=0; INSTALLED_ONLY=0
+parse_common_args() {
+  while (($#)); do
+    case "$1" in
+      --profile) PROFILE=$2; shift 2 ;;
+      --profile=*) PROFILE=${1#*=}; shift ;;
+      --with) WITH=$2; shift 2 ;;
+      --with=*) WITH=${1#*=}; shift ;;
+      --without) WITHOUT=$2; shift 2 ;;
+      --without=*) WITHOUT=${1#*=}; shift ;;
+      --dry-run) DRY_RUN=1; shift ;;
+      --yes|-y) ASSUME_YES=1; shift ;;
+      --no-shell) NO_SHELL=1; shift ;;
+      --installed) INSTALLED_ONLY=1; shift ;;
+      --json) JSON=1; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) die "Unknown option: $1" ;;
+    esac
+  done
+}
+
+# names to list: resolved profile set, or the whole catalog when no profile.
+_selected_names() {
+  if [[ -n "$PROFILE" ]]; then
+    catalog_profile_exists "$PROFILE" || die "Unknown profile: $PROFILE"
+    resolve_tools "$PROFILE" "$WITH" "$WITHOUT"
+  else
+    catalog_tool_names | sort
+  fi
+}
+
+ait_list() {
+  parse_common_args "$@"
+  bootstrap_yq
+  # Set of names to show (newline-delimited); grep -Fxq tests membership.
+  local names; names=$(_selected_names)
+
+  # One catalog pass gives name/desc/bin for every tool.
+  local name tagcsv method desc optin bin present first=1
+  if ((JSON)); then printf '['; else printf '%-24s %-10s %s\n' 'TOOL' 'STATUS' 'DESCRIPTION'; fi
+
+  while IFS=$'\t' read -r name tagcsv method desc optin bin; do
+    [[ -z "$name" ]] && continue
+    grep -Fxq "$name" <<< "$names" || continue
+    present=false; command -v "$bin" >/dev/null 2>&1 && present=true
+    ((INSTALLED_ONLY)) && [[ "$present" == false ]] && continue
+    if ((JSON)); then
+      ((first)) || printf ','; first=0
+      printf '{"name":"%s","installed":%s}' "$name" "$present"
+    else
+      local status='-'; [[ "$present" == true ]] && status='installed'
+      printf '%-24s %-10s %s\n' "$name" "$status" "$desc"
+    fi
+  done < <(catalog_tools_tsv)
+
+  ((JSON)) && printf ']\n'
+  return 0
+}
+
+ait_install() {
+  parse_common_args "$@"
+  [[ -n "$PROFILE" ]] || die 'install needs --profile (see: ait list --profile ...)'
+  require_linux
+  bootstrap_yq
+  catalog_profile_exists "$PROFILE" || die "Unknown profile: $PROFILE"
+
+  local names; names=$(resolve_tools "$PROFILE" "$WITH" "$WITHOUT")
+  local count; count=$(grep -c . <<< "$names")
+  log "Profile '$PROFILE' resolves to $count tool(s):"
+  printf '%s\n' "$names" | sed 's/^/  - /'
+  dryrun && log '(dry-run: nothing will be installed)'
+
+  if ((${ASSUME_YES:-0} == 0)) && ! dryrun && [[ -t 0 && ${CI:-} != true ]]; then
+    read -r -p "Proceed? [y/N] " a; [[ "$a" =~ ^[Yy]$ ]] || exit 0
+  fi
+
+  init_paths; acquire_lock; trap release_lock EXIT; begin_failure_report
+  export PROFILE
+  local name
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    install_tool "$name" || record_failure "$name" 'installer error'
+  done <<< "$names"
+
+  if ((${NO_SHELL:-0} == 0)); then configure_shell; fi
+  report_failures
+}
+
+main() {
+  local cmd=${1:-}
+  [[ $# -gt 0 ]] && shift || true
+  case "$cmd" in
+    list) ait_list "$@" ;;
+    install) ait_install "$@" ;;
+    doctor) exec "$ROOT/doctor.sh" "$@" ;;
+    update) exec "$ROOT/update.sh" "$@" ;;
+    uninstall) exec "$ROOT/uninstall.sh" "$@" ;;
+    ''|menu) warn 'The interactive menu arrives in a later phase; use: ait install --profile ...'; usage; exit 0 ;;
+    -h|--help|help) usage ;;
+    *) die "Unknown command: $cmd (try: ait --help)" ;;
+  esac
+}
+main "$@"

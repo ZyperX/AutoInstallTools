@@ -13,7 +13,8 @@ _rust_target() {
   esac
 }
 
-install_rust_toolchain() {
+# Subshell function so the tmp-cleanup EXIT trap cannot leak to other returns.
+install_rust_toolchain() (
   if command -v rustup >/dev/null 2>&1; then
     ok "rustup already present; skipping"
     return 0
@@ -27,7 +28,7 @@ install_rust_toolchain() {
   command -v curl >/dev/null || { record_failure 'rust' 'curl is required to install rustup'; return 0; }
 
   local base="https://static.rust-lang.org/rustup/dist/$target"
-  local tmp; tmp=$(mktemp -d); trap 'rm -rf -- "$tmp"' RETURN
+  local tmp; tmp=$(mktemp -d); trap 'rm -rf -- "$tmp"' EXIT
   retry curl -fL --retry 3 -o "$tmp/rustup-init" "$base/rustup-init" || {
     record_failure 'rust' 'rustup-init download failed'; return 0; }
   retry curl -fL --retry 3 -o "$tmp/rustup-init.sha256" "$base/rustup-init.sha256" || {
@@ -43,7 +44,7 @@ install_rust_toolchain() {
   "$tmp/rustup-init" -y --no-modify-path --profile minimal || {
     record_failure 'rust' 'rustup installation failed'; return 0; }
   ok "Installed rustup and the stable Rust toolchain"
-}
+)
 
 cargo_install() {
   command -v "$1" >/dev/null 2>&1 && { ok "$1 already installed; skipping"; return 0; }

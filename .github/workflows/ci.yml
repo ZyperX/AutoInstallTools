@@ -20,5 +20,5 @@ jobs:
       - name: Lint
         run: make lint
 
-      - name: Prove --dry-run changes nothing
+      - name: Validate catalog, resolver & dry-run
         run: make test

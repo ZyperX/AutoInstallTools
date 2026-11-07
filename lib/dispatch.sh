@@ -65,6 +65,10 @@ install_tool() {
           || warn "$name mirror finished with some errors (partial lists possible)."
       fi
       ;;
+    git_venv | docker | official_archive | manual)
+      if dryrun; then would "install $name via $method (implemented in Phase 2)"
+      else record_failure "$name" "method '$method' not implemented yet (Phase 2)"; fi
+      ;;
     *) record_failure "$name" "unknown install method '$method'" ;;
   esac
 }

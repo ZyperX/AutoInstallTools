@@ -13,8 +13,9 @@ bootstrap_yq >/dev/null
 
 fail=0
 bad() { echo "SCHEMA: $*" >&2; fail=1; }
-known_methods=' apt go github_release pipx npm cargo git wget_mirror runtime '
+known_methods=' apt go github_release pipx npm cargo git git_venv docker official_archive wget_mirror runtime manual '
 known_tags=' core runtime recon web api mobile code cloud wordlists ai '
+known_categories=' core runtime recon proxy discovery vuln api js-secrets sast-sca android ios reversing wordlists cloud container ai '
 
 # Unique names.
 dupes=$(catalog_tool_names | sort | uniq -d)
@@ -22,12 +23,15 @@ dupes=$(catalog_tool_names | sort | uniq -d)
 
 # One pass: name, tags, method, desc, optin, apt-count, go, repo, pypi, npm,
 # crate, git, url, dest, runtime.
-while IFS=$'\t' read -r name tags method desc optin naptn go repo pypi npm crate git url dest runtime; do
+while IFS=$'\t' read -r name tags method desc optin naptn go repo pypi npm crate git url dest runtime category gui; do
   [[ -z "$name" ]] && continue
   [[ -n "$desc" ]] || bad "$name: missing desc"
   ((${#desc} <= 48)) || bad "$name: desc is ${#desc} chars (>48): $desc"
   [[ -n "$tags" ]] || bad "$name: missing tags"
   [[ "$known_methods" == *" $method "* ]] || bad "$name: unknown method '$method'"
+  [[ "$category" != - ]] || bad "$name: missing category"
+  [[ "$known_categories" == *" $category "* ]] || bad "$name: unknown category '$category'"
+  [[ "$gui" == true || "$gui" == false ]] || bad "$name: gui must be true/false"
 
   IFS=',' read -ra _tg <<< "$tags"
   for t in "${_tg[@]}"; do [[ "$known_tags" == *" $t "* ]] || bad "$name: unknown tag '$t'"; done
@@ -49,7 +53,7 @@ done < <("$YQ" '.tools[] | [
     .name, (.tags | join(",")), .method, .desc, (.opt_in // false),
     ((.apt // []) | length), (.go // "-"), (.repo // "-"), (.pypi // "-"),
     (.npm // "-"), (.crate // "-"), (.git // "-"), (.url // "-"), (.dest // "-"),
-    (.runtime // "-")] | @tsv' "$TOOLS_YAML")
+    (.runtime // "-"), (.category // "-"), (.gui // false)] | @tsv' "$TOOLS_YAML")
 
 # Profiles reference only known tags.
 while IFS= read -r p; do

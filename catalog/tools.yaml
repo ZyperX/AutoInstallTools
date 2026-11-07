@@ -3,67 +3,78 @@
 # Schema (per entry):
 #   name        required  command/identifier (unique)
 #   desc        required  <= 48 chars, shown in `ait list` and the menu
+#   category    required  one of: core runtime recon proxy discovery vuln api
+#                         js-secrets sast-sca android ios reversing wordlists
+#                         cloud container ai   (the menu groups tools by this)
 #   tags        required  list; profiles select tools by tag
-#   method      required  one of: apt | go | github_release | pipx | npm |
-#                         cargo | git | wget_mirror | runtime
+#   method      required  apt | go | github_release | pipx | npm | cargo | git |
+#                         git_venv | docker | official_archive | wget_mirror |
+#                         runtime | manual
 #   bin         optional  command used for the "installed?" check (default: name)
+#   gui         optional  true for GUI apps (menu labels them on WSL)
 #   check       optional  command run by `ait doctor` to confirm it works
 #   opt_in      optional  true = never selected by a profile, only via --with
 #   platforms   optional  list; default [linux]
 #   notes       optional  free text
 # Method-specific keys:
-#   apt:        [packages]                 (apt)
-#   go:         module path (installed @latest)   (go)
-#   apt_deps:   [packages] built first      (go, for cgo system libs)
-#   repo:       owner/name                  (github_release)
-#   dest:       install path                (github_release, git)
-#   pypi:       PyPI name                   (pipx)
-#   npm:        npm package                 (npm)
-#   crate:      crate name                  (cargo)
-#   git:        clone URL                   (git)
-#   url:        mirror root URL             (wget_mirror)
-#   runtime:    go | rust | node            (runtime)
+#   apt:[packages] | go:<module> | apt_deps:[packages] | repo:<owner/name> |
+#   dest:<path> | pypi:<name> | npm:<name> | crate:<name> | git:<url> |
+#   url:<mirror root> | runtime:<go|rust|node|awscli>
+# Pinning fields (version/asset/sha256/checksum_file) are added in Phase 2.
 
 tools:
-  # ---- Base / everyday CLI (core) ----
+  # ================= core / everyday CLI =================
   - name: base-essentials
     desc: Base system packages & build toolchain
+    category: core
     tags: [core]
     method: apt
     apt: [ca-certificates, gnupg, lsb-release, software-properties-common, build-essential, unzip, zip, wget]
   - name: curl
     desc: Transfer data over HTTP and more
+    category: core
     tags: [core]
     method: apt
     apt: [curl]
     check: curl --version
   - name: git
     desc: Distributed version control
+    category: core
     tags: [core]
     method: apt
     apt: [git]
     check: git --version
   - name: jq
     desc: Command-line JSON processor
+    category: core
     tags: [core]
     method: apt
     apt: [jq]
     check: jq --version
   - name: yq
     desc: YAML/JSON/XML processor (mikefarah)
+    category: core
     tags: [core]
     method: github_release
     repo: mikefarah/yq
     bin: yq
     check: yq --version
+  - name: gron
+    desc: Make JSON greppable
+    category: core
+    tags: [core]
+    method: go
+    go: github.com/tomnomnom/gron
   - name: eza
     desc: Modern ls replacement
+    category: core
     tags: [core]
     method: github_release
     repo: eza-community/eza
     bin: eza
   - name: ripgrep
     desc: Fast recursive grep
+    category: core
     tags: [core]
     method: apt
     apt: [ripgrep]
@@ -71,6 +82,7 @@ tools:
     check: rg --version
   - name: fd
     desc: Fast, friendly file finder
+    category: core
     tags: [core]
     method: apt
     apt: [fd-find]
@@ -78,6 +90,7 @@ tools:
     check: fdfind --version
   - name: bat
     desc: cat with syntax highlighting
+    category: core
     tags: [core]
     method: apt
     apt: [bat]
@@ -85,43 +98,51 @@ tools:
     check: batcat --version
   - name: tmux
     desc: Terminal multiplexer
+    category: core
     tags: [core]
     method: apt
     apt: [tmux]
   - name: zoxide
     desc: Smarter cd that learns your habits
+    category: core
     tags: [core]
     method: apt
     apt: [zoxide]
   - name: fzf
     desc: Fuzzy finder for the terminal
+    category: core
     tags: [core]
     method: apt
     apt: [fzf]
   - name: ncdu
     desc: Disk usage analyzer (TUI)
+    category: core
     tags: [core]
     method: apt
     apt: [ncdu]
   - name: btop
     desc: Resource monitor (TUI)
+    category: core
     tags: [core]
     method: apt
     apt: [btop]
   - name: tree
     desc: List directories as a tree
+    category: core
     tags: [core]
     method: apt
     apt: [tree]
   - name: socat
     desc: Multipurpose relay / socket tool
+    category: core
     tags: [core]
     method: apt
     apt: [socat]
 
-  # ---- Runtimes ----
+  # ================= runtimes =================
   - name: python
     desc: Python 3 with pip and pipx
+    category: runtime
     tags: [runtime]
     method: apt
     apt: [python3, python3-pip, pipx]
@@ -129,6 +150,7 @@ tools:
     check: python3 --version
   - name: jdk
     desc: JDK 21 with Maven and Gradle
+    category: runtime
     tags: [runtime]
     method: apt
     apt: [openjdk-21-jdk, maven, gradle]
@@ -136,6 +158,7 @@ tools:
     check: java -version
   - name: go
     desc: Go toolchain (official tarball)
+    category: runtime
     tags: [runtime]
     method: runtime
     runtime: go
@@ -143,12 +166,14 @@ tools:
     check: go version
   - name: rust
     desc: Rust toolchain via rustup
+    category: runtime
     tags: [runtime]
     method: runtime
     runtime: rust
     bin: cargo
   - name: node
     desc: Node.js 22 LTS (NodeSource)
+    category: runtime
     tags: [runtime]
     method: runtime
     runtime: node
@@ -156,160 +181,454 @@ tools:
     check: node --version
   - name: pnpm
     desc: Fast, disk-efficient npm alternative
+    category: runtime
     tags: [runtime]
     method: npm
     npm: pnpm
 
-  # ---- Recon & attack surface ----
+  # ================= recon & attack surface =================
   - name: subfinder
     desc: Passive subdomain enumeration
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/subfinder/v2/cmd/subfinder
     check: subfinder -version
   - name: httpx
     desc: HTTP probing & tech detection
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/httpx/cmd/httpx
     check: httpx -version
-  - name: nuclei
-    desc: Template-based vulnerability scanner
-    tags: [recon]
-    method: go
-    go: github.com/projectdiscovery/nuclei/v3/cmd/nuclei
-    check: nuclei -version
   - name: katana
     desc: Fast crawler with JS parsing
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/katana/cmd/katana
   - name: dnsx
     desc: Fast DNS resolution & probing
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/dnsx/cmd/dnsx
   - name: naabu
     desc: Fast SYN/CONNECT port scanner
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/naabu/v2/cmd/naabu
     apt_deps: [libpcap-dev]
   - name: uncover
     desc: Query Shodan/Censys/FOFA from CLI
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/uncover/cmd/uncover
   - name: alterx
     desc: Subdomain permutation generator
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/alterx/cmd/alterx
   - name: shuffledns
     desc: massdns wrapper for DNS brute force
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/shuffledns/cmd/shuffledns
   - name: mapcidr
     desc: CIDR/IP range manipulation
+    category: recon
     tags: [recon]
     method: go
     go: github.com/projectdiscovery/mapcidr/cmd/mapcidr
-  - name: assetfinder
-    desc: Find domains related to a target
+  - name: tlsx
+    desc: TLS data collection & analysis
+    category: recon
     tags: [recon]
-    method: go
-    go: github.com/tomnomnom/assetfinder
-  - name: waybackurls
-    desc: Fetch URLs from the Wayback Machine
+    method: github_release
+    repo: projectdiscovery/tlsx
+  - name: cdncheck
+    desc: Detect CDN/WAF/cloud by IP
+    category: recon
     tags: [recon]
-    method: go
-    go: github.com/tomnomnom/waybackurls
+    method: github_release
+    repo: projectdiscovery/cdncheck
+  - name: asnmap
+    desc: Map ASN to IP ranges
+    category: recon
+    tags: [recon]
+    method: github_release
+    repo: projectdiscovery/asnmap
+  - name: urlfinder
+    desc: Passive URL discovery
+    category: recon
+    tags: [recon, web]
+    method: github_release
+    repo: projectdiscovery/urlfinder
   - name: gau
     desc: Fetch known URLs from passive sources
+    category: recon
     tags: [recon]
     method: go
     go: github.com/lc/gau/v2/cmd/gau
-  - name: hakrawler
-    desc: Fast web crawler for endpoints
+  - name: waymore
+    desc: More URLs from Wayback & more sources
+    category: recon
+    tags: [recon, web]
+    method: pipx
+    pypi: waymore
+  - name: gowitness
+    desc: Screenshot & triage many hosts
+    category: recon
+    tags: [recon]
+    method: github_release
+    repo: sensepost/gowitness
+  - name: puredns
+    desc: Wildcard-aware DNS brute & resolve
+    category: recon
     tags: [recon]
     method: go
-    go: github.com/hakluke/hakrawler
+    go: github.com/d3mondev/puredns/v2
+    bin: puredns
+    notes: Needs massdns on PATH; install massdns from source separately.
+  - name: anew
+    desc: Append only new lines to a file
+    category: recon
+    tags: [recon]
+    method: go
+    go: github.com/tomnomnom/anew
+  - name: unfurl
+    desc: Pull parts out of URLs
+    category: recon
+    tags: [recon]
+    method: go
+    go: github.com/tomnomnom/unfurl
+  - name: qsreplace
+    desc: Replace query-string values in URLs
+    category: recon
+    tags: [recon]
+    method: go
+    go: github.com/tomnomnom/qsreplace
   - name: amass
     desc: Deep OSINT subdomain enumeration
+    category: recon
     tags: [recon]
+    opt_in: true
     method: github_release
     repo: owasp-amass/amass
     bin: amass
+    notes: Heavy; opt-in via --with amass.
   - name: nmap
     desc: Network & service scanner
+    category: recon
     tags: [core, recon]
     method: apt
     apt: [nmap, masscan]
     bin: nmap
   - name: rustscan
     desc: Very fast port discovery
+    category: recon
     tags: [recon]
     method: cargo
     crate: rustscan
+  - name: hakrawler
+    desc: Fast web crawler for endpoints
+    category: recon
+    tags: [recon]
+    opt_in: true
+    method: go
+    go: github.com/hakluke/hakrawler
+    notes: Superseded by katana.
+  - name: assetfinder
+    desc: Find domains related to a target
+    category: recon
+    tags: [recon]
+    opt_in: true
+    method: go
+    go: github.com/tomnomnom/assetfinder
+    notes: Superseded by subfinder.
+  - name: waybackurls
+    desc: Fetch URLs from the Wayback Machine
+    category: recon
+    tags: [recon]
+    opt_in: true
+    method: go
+    go: github.com/tomnomnom/waybackurls
+    notes: Superseded by gau / waymore.
 
-  # ---- Content discovery, fuzzing & web ----
-  - name: sqlmap
-    desc: Automatic SQL injection testing
+  # ================= proxies =================
+  - name: mitmproxy
+    desc: Scriptable intercepting proxy
+    category: proxy
+    tags: [web, mobile]
+    method: pipx
+    pypi: mitmproxy
+    bin: mitmproxy
+
+  # ================= content discovery & fuzzing =================
+  - name: ffuf
+    desc: The general-purpose web fuzzer
+    category: discovery
     tags: [web, api]
-    method: apt
-    apt: [sqlmap]
-  - name: gobuster
-    desc: Directory/DNS/vhost brute forcing
-    tags: [web]
-    method: apt
-    apt: [gobuster]
+    method: go
+    go: github.com/ffuf/ffuf/v2
+    check: ffuf -V
   - name: feroxbuster
     desc: Recursive content discovery
+    category: discovery
     tags: [web]
     method: github_release
     repo: epi052/feroxbuster
     bin: feroxbuster
     check: feroxbuster --version
-  - name: ffuf
-    desc: The general-purpose web fuzzer
+  - name: x8
+    desc: Hidden HTTP parameter discovery
+    category: discovery
     tags: [web, api]
-    method: go
-    go: github.com/ffuf/ffuf/v2
-    check: ffuf -V
-  - name: dalfox
-    desc: XSS scanning & verification
-    tags: [web]
-    method: go
-    go: github.com/hahwul/dalfox/v2
+    method: github_release
+    repo: Sh1Yo/x8
+    bin: x8
   - name: arjun
     desc: HTTP parameter discovery
+    category: discovery
     tags: [web, api]
     method: pipx
     pypi: arjun
+  - name: nomore403
+    desc: 401/403 bypass techniques
+    category: discovery
+    tags: [web]
+    method: github_release
+    repo: devploit/nomore403
+    bin: nomore403
+  - name: gobuster
+    desc: Directory/DNS/vhost brute forcing
+    category: discovery
+    tags: [web]
+    opt_in: true
+    method: apt
+    apt: [gobuster]
+    notes: Superseded by ffuf / feroxbuster.
   - name: dirsearch
     desc: Web path brute forcer
+    category: discovery
     tags: [web]
+    opt_in: true
     method: pipx
     pypi: dirsearch
+    notes: Superseded by ffuf / feroxbuster.
 
-  # ---- Mobile (Android) ----
+  # ================= vuln scanning & exploitation =================
+  - name: nuclei
+    desc: Template-based vulnerability scanner
+    category: vuln
+    tags: [recon]
+    method: go
+    go: github.com/projectdiscovery/nuclei/v3/cmd/nuclei
+    check: nuclei -version
+  - name: interactsh-client
+    desc: Out-of-band interaction catcher
+    category: vuln
+    tags: [web, api]
+    method: github_release
+    repo: projectdiscovery/interactsh
+    bin: interactsh-client
+  - name: vulnx
+    desc: CVE search & triage from the terminal
+    category: vuln
+    tags: [web]
+    method: github_release
+    repo: projectdiscovery/vulnx
+    bin: vulnx
+  - name: sqlmap
+    desc: Automatic SQL injection testing
+    category: vuln
+    tags: [web, api]
+    method: apt
+    apt: [sqlmap]
+  - name: ghauri
+    desc: SQLi tool, strong where sqlmap fails
+    category: vuln
+    tags: [web, api]
+    method: pipx
+    pypi: ghauri
+  - name: dalfox
+    desc: XSS scanning & verification
+    category: vuln
+    tags: [web]
+    method: go
+    go: github.com/hahwul/dalfox/v2
+  - name: sstimap
+    desc: Server-side template injection
+    category: vuln
+    tags: [web]
+    method: git_venv
+    git: https://github.com/vladko312/SSTImap.git
+    dest: ~/.local/share/ait/apps/sstimap
+    bin: sstimap
+  - name: commix
+    desc: OS command injection
+    category: vuln
+    tags: [web]
+    method: git_venv
+    git: https://github.com/commixproject/commix.git
+    dest: ~/.local/share/ait/apps/commix
+    bin: commix
+
+  # ================= API, GraphQL & auth =================
+  - name: jwt_tool
+    desc: JWT analysis, tampering & attacks
+    category: api
+    tags: [web, api]
+    method: git_venv
+    git: https://github.com/ticarpi/jwt_tool.git
+    dest: ~/.local/share/ait/apps/jwt_tool
+    bin: jwt_tool
+  - name: kiterunner
+    desc: API route discovery with real lists
+    category: api
+    tags: [api]
+    method: github_release
+    repo: assetnote/kiterunner
+    bin: kr
+
+  # ================= JavaScript, secrets & source =================
+  - name: jsluice
+    desc: Extract URLs & secrets from JS
+    category: js-secrets
+    tags: [web]
+    method: go
+    go: github.com/BishopFox/jsluice/cmd/jsluice
+  - name: xnlinkfinder
+    desc: Endpoint discovery from JS & responses
+    category: js-secrets
+    tags: [web]
+    method: pipx
+    pypi: xnLinkFinder
+    bin: xnLinkFinder
+  - name: trufflehog
+    desc: Verified secret scanning
+    category: js-secrets
+    tags: [web, code]
+    method: github_release
+    repo: trufflesecurity/trufflehog
+  - name: gitleaks
+    desc: Fast secret scanning for repos
+    category: js-secrets
+    tags: [code]
+    method: github_release
+    repo: gitleaks/gitleaks
+
+  # ================= SAST / SCA / containers =================
+  - name: osv-scanner
+    desc: Dependency vulnerability scanning
+    category: sast-sca
+    tags: [code]
+    method: github_release
+    repo: google/osv-scanner
+    bin: osv-scanner
+  - name: trivy
+    desc: Container/IaC/FS & SBOM scanner
+    category: sast-sca
+    tags: [code, cloud]
+    method: github_release
+    repo: aquasecurity/trivy
+  - name: syft
+    desc: Generate SBOMs from images & dirs
+    category: sast-sca
+    tags: [code, cloud]
+    method: github_release
+    repo: anchore/syft
+  - name: grype
+    desc: Vulnerability matching from SBOMs
+    category: sast-sca
+    tags: [code, cloud]
+    method: github_release
+    repo: anchore/grype
+
+  # ================= Android =================
   - name: android-platform-tools
     desc: Android adb & fastboot (apt)
+    category: android
     tags: [mobile]
     method: apt
     apt: [adb, fastboot]
     bin: adb
     check: adb version
-    notes: Phase 4 replaces this with Google's upstream platform-tools.
+    notes: Phase 4 replaces this with Google's upstream platform-tools zip.
   - name: apktool
     desc: Decode, patch & rebuild APKs
+    category: android
     tags: [mobile]
     method: apt
     apt: [apktool]
     check: apktool --version
+  - name: jadx
+    desc: DEX to Java decompiler (CLI)
+    category: android
+    tags: [mobile]
+    method: official_archive
+    repo: skylot/jadx
+    bin: jadx
+  - name: jadx-gui
+    desc: DEX to Java decompiler (GUI)
+    category: android
+    tags: [mobile]
+    gui: true
+    method: official_archive
+    repo: skylot/jadx
+    bin: jadx-gui
+  - name: droidasc
+    desc: Fast on-demand APK search & decompile
+    category: android
+    tags: [mobile]
+    method: pipx
+    pypi: droidasc
+    check: droidasc -h
+  - name: rust-asc
+    desc: Rust ASC, 10x faster full decompile
+    category: android
+    tags: [mobile]
+    method: github_release
+    repo: MG1937/rust_ASC
+    bin: rust-asc
+  - name: apk-mitm
+    desc: Auto-patch APKs for TLS interception
+    category: android
+    tags: [mobile]
+    method: npm
+    npm: apk-mitm
+  - name: uber-apk-signer
+    desc: Zipalign & sign rebuilt APKs
+    category: android
+    tags: [mobile]
+    method: official_archive
+    repo: patrickfav/uber-apk-signer
+    bin: uber-apk-signer
+  - name: reflutter
+    desc: Flutter app traffic interception
+    category: android
+    tags: [mobile]
+    method: pipx
+    pypi: reflutter
+  - name: hermes-dec
+    desc: React Native Hermes decompiler
+    category: android
+    tags: [mobile]
+    method: pipx
+    pypi: hermes-dec
+  - name: apkleaks
+    desc: Secrets & endpoints in APKs
+    category: android
+    tags: [mobile]
+    method: pipx
+    pypi: apkleaks
   - name: frida-tools
     desc: Dynamic instrumentation (Frida 17+)
+    category: android
     tags: [mobile]
     method: pipx
     pypi: frida-tools
@@ -317,46 +636,83 @@ tools:
     check: frida --version
   - name: objection
     desc: Runtime mobile exploration on Frida
+    category: android
     tags: [mobile]
     method: pipx
     pypi: objection
+  - name: scrcpy
+    desc: Mirror & control the device screen
+    category: android
+    tags: [mobile]
+    gui: true
+    method: apt
+    apt: [scrcpy]
+  - name: mobsf
+    desc: Static/dynamic mobile analysis suite
+    category: android
+    tags: [mobile]
+    opt_in: true
+    method: docker
+    notes: Runs as a Docker container (opdemand/mobsf image).
 
-  # ---- Code review / SCA / containers ----
-  - name: trivy
-    desc: Container/IaC/FS & SBOM scanner
-    tags: [code, cloud]
+  # ================= iOS (host side) =================
+  - name: libimobiledevice
+    desc: Talk to iOS devices from Linux
+    category: ios
+    tags: [mobile]
+    method: apt
+    apt: [libimobiledevice-utils]
+    bin: ideviceinfo
+  - name: ipsw
+    desc: Firmware & Mach-O research toolkit
+    category: ios
+    tags: [mobile]
     method: github_release
-    repo: aquasecurity/trivy
-  - name: syft
-    desc: Generate SBOMs from images & dirs
-    tags: [code, cloud]
+    repo: blacktop/ipsw
+    bin: ipsw
+  - name: ipatool
+    desc: Download IPAs from the App Store
+    category: ios
+    tags: [mobile]
     method: github_release
-    repo: anchore/syft
-  - name: grype
-    desc: Vulnerability matching from SBOMs
-    tags: [code, cloud]
-    method: github_release
-    repo: anchore/grype
+    repo: majd/ipatool
+    bin: ipatool
 
-  # ---- Cloud / Kubernetes / containers ----
+  # ================= reversing =================
+  - name: ghidra
+    desc: Software reverse engineering suite
+    category: reversing
+    tags: [mobile]
+    gui: true
+    opt_in: true
+    method: official_archive
+    repo: NationalSecurityAgency/ghidra
+    bin: ghidraRun
+    notes: Large; needs JDK 21. Opt-in via --with ghidra.
+
+  # ================= cloud / kubernetes / containers =================
   - name: awscli
     desc: AWS CLI v2 (official installer)
+    category: cloud
     tags: [cloud]
     method: runtime
     runtime: awscli
     bin: aws
   - name: k9s
     desc: Kubernetes cluster TUI
+    category: cloud
     tags: [cloud]
     method: github_release
     repo: derailed/k9s
   - name: kubectx
     desc: Switch kube contexts & namespaces
+    category: cloud
     tags: [cloud]
     method: github_release
     repo: ahmetb/kubectx
   - name: docker
     desc: Container engine (docker.io)
+    category: container
     tags: [cloud]
     method: apt
     apt: [docker.io]
@@ -364,6 +720,7 @@ tools:
     check: docker --version
   - name: docker-compose
     desc: Compose v2 Docker CLI plugin
+    category: container
     tags: [cloud]
     method: github_release
     repo: docker/compose
@@ -371,18 +728,21 @@ tools:
     dest: ~/.docker/cli-plugins/docker-compose
   - name: lazydocker
     desc: Docker management TUI
+    category: container
     tags: [cloud]
     method: github_release
     repo: jesseduffield/lazydocker
   - name: dive
     desc: Inspect Docker image layers
+    category: container
     tags: [cloud]
     method: github_release
     repo: wagoodman/dive
 
-  # ---- AI assistants (opt-in) ----
+  # ================= AI assistants (opt-in) =================
   - name: claude-code
     desc: Anthropic Claude Code CLI
+    category: ai
     tags: [ai]
     opt_in: true
     method: npm
@@ -390,6 +750,7 @@ tools:
     bin: claude
   - name: opencode
     desc: Open-source AI coding agent CLI
+    category: ai
     tags: [ai]
     opt_in: true
     method: npm
@@ -397,6 +758,7 @@ tools:
     bin: opencode
   - name: aider
     desc: AI pair programming in your terminal
+    category: ai
     tags: [ai]
     opt_in: true
     method: pipx
@@ -404,45 +766,52 @@ tools:
     bin: aider
   - name: llm
     desc: CLI for large language models
+    category: ai
     tags: [ai]
     opt_in: true
     method: pipx
     pypi: llm
   - name: shell-gpt
     desc: LLM helper for the command line
+    category: ai
     tags: [ai]
     opt_in: true
     method: pipx
     pypi: shell-gpt
     bin: sgpt
 
-  # ---- Wordlists ----
+  # ================= wordlists =================
   - name: seclists
-    desc: The security tester's wordlist collection
+    desc: The security tester's wordlists
+    category: wordlists
     tags: [wordlists]
     method: git
     git: https://github.com/danielmiessler/SecLists.git
     dest: $WORDLISTS/SecLists
   - name: payloadsallthethings
     desc: Payloads & bypasses for web testing
+    category: wordlists
     tags: [wordlists]
     method: git
     git: https://github.com/swisskyrepo/PayloadsAllTheThings.git
     dest: $WORDLISTS/PayloadsAllTheThings
   - name: fuzzdb
     desc: Attack patterns & discovery lists
+    category: wordlists
     tags: [wordlists]
     method: git
     git: https://github.com/fuzzdb-project/fuzzdb.git
     dest: $WORDLISTS/FuzzDB
   - name: onelistforall
     desc: Merged content-discovery wordlist
+    category: wordlists
     tags: [wordlists]
     method: git
     git: https://github.com/six2dez/OneListForAll.git
     dest: $WORDLISTS/OneListForAll
   - name: assetnote
     desc: Assetnote wordlists (large CDN mirror)
+    category: wordlists
     tags: [wordlists]
     opt_in: true
     method: wget_mirror

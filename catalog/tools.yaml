@@ -628,8 +628,11 @@ tools:
     desc: SQLi tool, strong where sqlmap fails
     category: vuln
     tags: [web, api]
-    method: uv
-    pypi: ghauri
+    method: git_venv
+    git: https://github.com/r0oth3x49/ghauri.git
+    dest: ~/.local/share/ait/apps/ghauri
+    bin: ghauri
+    entry: ghauri.py
   - name: dalfox
     desc: XSS scanning & verification
     category: vuln
@@ -977,6 +980,8 @@ tools:
     tags: [mobile]
     method: uv
     pypi: hermes-dec
+    bin: hbc-decompiler
+    check: hbc-decompiler --help
   - name: apkleaks
     desc: Secrets & endpoints in APKs
     category: android

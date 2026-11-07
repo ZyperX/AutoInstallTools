@@ -47,5 +47,14 @@ has "$(resolve_tools web '' amass)" amass        && { echo "RESOLVER: --without 
 has "$(resolve_tools api code '')" trivy         || { echo "RESOLVER: --with code tag failed" >&2; fail=1; }
 has "$(resolve_tools web '' recon)" subfinder    && { echo "RESOLVER: --without recon tag failed" >&2; fail=1; }
 
+# Per-platform pin maps must be read by key; a map must never be mistaken for a
+# scalar sha256 (this caused false checksum failures for caido/jadx/opengrep).
+map_sha=$(catalog_tool_field caido-cli sha256.linux_amd64)
+scalar_sha=$(catalog_tool_str caido-cli sha256)
+[[ "$map_sha" =~ ^[0-9a-f]{64}$ ]] \
+  || { echo "RESOLVER: per-platform sha256 map lookup failed" >&2; fail=1; }
+[[ -z "$scalar_sha" ]] \
+  || { echo "RESOLVER: sha256 map leaked into scalar field" >&2; fail=1; }
+
 if ((fail)); then echo "resolver tests FAILED" >&2; exit 1; fi
 echo "resolver tests passed"

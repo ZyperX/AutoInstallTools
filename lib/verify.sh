@@ -13,5 +13,6 @@ verify_sha256() {
 # an asset listed in a checksums file (lines "<hash>  <name>"), or empty.
 checksum_from_file() {
   local cfile=$1 name=$2
-  grep -F -- "$name" "$cfile" 2>/dev/null | awk '{print $1}' | head -n1
+  # index() is a literal match (asset names contain dots/dashes, not regexes).
+  awk -v n="$name" 'index($0, n) { print $1; exit }' "$cfile" 2>/dev/null
 }

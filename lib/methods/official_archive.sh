@@ -29,9 +29,12 @@ install_official_archive() (
   if dryrun; then would "install $name (official_archive)"; return 0; fi
   command -v curl >/dev/null || { record_failure "$name" 'curl required'; return 0; }
 
-  # pinned sha256 may be a scalar or a per-plat map
-  sha=$(catalog_tool_field "$name" sha256)
-  [[ -z "$sha" && -n "$key" ]] && sha=$(catalog_tool_field "$name" "sha256.$key")
+  # Pinned sha256 may be a scalar or a per-plat map. catalog_tool_str returns
+  # empty for maps, so read the scalar first and only then look up the key.
+  sha=$(catalog_tool_str "$name" sha256)
+  if [[ -z "$sha" && -n "$key" ]]; then
+    sha=$(catalog_tool_field "$name" "sha256.$key")
+  fi
 
   # Resolve the download URL.
   if [[ -z "$url" ]]; then
@@ -40,9 +43,13 @@ install_official_archive() (
     if [[ -n "$version" ]]; then api="https://api.github.com/repos/$repo/releases/tags/$version"
     else api="https://api.github.com/repos/$repo/releases/latest"; fi
     local json; json=$(retry curl -fsSL "$api") || { record_failure "$name" 'release API query failed'; return 0; }
-    # shell-glob the asset names against asset_glob
+    # Shell-glob the asset names against asset_glob. Use process substitution,
+    # not a pipeline: `jq | head` would trip pipefail via SIGPIPE.
+    local n
     # shellcheck disable=SC2053  # glob match against the catalog's asset pattern
-    aname=$(jq -r '.assets[].name' <<<"$json" | while IFS= read -r n; do [[ "$n" == $asset_glob ]] && echo "$n"; done | head -n1)
+    while IFS= read -r n; do
+      if [[ "$n" == $asset_glob ]]; then aname=$n; break; fi
+    done < <(jq -r '.assets[].name' <<<"$json")
     [[ -n "$aname" ]] || { record_failure "$name" "no asset matching '$asset_glob'"; return 0; }
     url=$(jq -r --arg a "$aname" '.assets[] | select(.name==$a) | .browser_download_url' <<<"$json")
   fi

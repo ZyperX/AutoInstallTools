@@ -87,8 +87,11 @@ gh_install_from_file() {
   esac || { rm -rf -- "$ex"; record_failure "$binname" 'could not extract release asset'; return 1; }
 
   bin=$(find "$ex" -type f -name "$binname" 2>/dev/null | head -n1)
-  [[ -z "$bin" ]] && bin=$(find "$ex" -type f -name "${binname}*" ! -name '*.*' 2>/dev/null | head -n1)
-  [[ -z "$bin" ]] && bin=$(find "$ex" -type f ! -name '*.*' -size +20k 2>/dev/null | head -n1)
+  # Versioned binaries contain dots (ipatool-2.7.0-linux-amd64), so don't filter
+  # on "no extension" here; prefer the name prefix, then any executable.
+  [[ -z "$bin" ]] && bin=$(find "$ex" -type f -name "${binname}*" 2>/dev/null | head -n1)
+  [[ -z "$bin" ]] && bin=$(find "$ex" -type f -perm -u+x 2>/dev/null | head -n1)
+  [[ -z "$bin" ]] && bin=$(find "$ex" -type f -size +20k 2>/dev/null | head -n1)
   [[ -n "$bin" ]] || { rm -rf -- "$ex"; record_failure "$binname" 'could not identify executable in asset'; return 1; }
 
   install -D -m 0755 "$bin" "$dest" || { rm -rf -- "$ex"; record_failure "$binname" 'could not place executable'; return 1; }
@@ -101,10 +104,12 @@ gh_install_from_file() {
 # Returns non-zero (and records a failure) only on an actual mismatch.
 _gh_verify_checksum() {
   local json=$1 name=$2 file=$3 binname=$4 csum_url expected actual ctmp
-  csum_url=$(jq -r --arg n "$name" '.assets[] | select(.name == ($n + ".sha256")) | .browser_download_url' <<<"$json" | head -n1)
+  # Take the first match inside jq: piping jq into `head` can SIGPIPE under pipefail.
+  csum_url=$(jq -r --arg n "$name" \
+    '[.assets[] | select(.name == ($n + ".sha256")) | .browser_download_url][0] // empty' <<<"$json")
   [[ -z "$csum_url" ]] && csum_url=$(jq -r '
-    .assets[] | select(.name | test("checksum|sha256sum|sha256";"i"))
-    | select(.name | test("\\.(txt|sha256|sha256sum)$";"i")) | .browser_download_url' <<<"$json" | head -n1)
+    [.assets[] | select(.name | test("checksum|sha256sum|sha256";"i"))
+    | select(.name | test("\\.(txt|sha256|sha256sum)$";"i")) | .browser_download_url][0] // empty' <<<"$json")
 
   if [[ -z "$csum_url" ]]; then
     warn "$binname: no upstream checksum published; installing unverified"
@@ -115,8 +120,8 @@ _gh_verify_checksum() {
   if ! curl -fsSL -o "$ctmp" "$csum_url"; then
     rm -f -- "$ctmp"; warn "$binname: could not fetch checksum; installing unverified"; return 0
   fi
-  expected=$(grep -iF -- "$name" "$ctmp" | awk '{print $1}' | head -n1)
-  [[ -z "$expected" ]] && expected=$(awk 'NF==1{print $1; exit} {print $1; exit}' "$ctmp")
+  expected=$(awk -v n="$name" 'index($0, n) { print $1; exit }' "$ctmp")
+  [[ -z "$expected" ]] && expected=$(awk 'NF { print $1; exit }' "$ctmp")
   rm -f -- "$ctmp"
 
   actual=$(sha256sum "$file" | awk '{print $1}')

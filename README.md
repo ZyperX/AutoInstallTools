@@ -17,11 +17,11 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 
 > ### 🚧 Project status — pre-v1, under active construction
 >
-> This README describes the **target** design. What works **today**:
+> Most of the workstation flow works **today**:
 >
 > ```bash
-> ./ait list                             # browse the catalog
-> ./ait list --profile web               # what a profile would install
+> ./ait                                  # interactive menu
+> ./ait list [--profile web] [--category android]
 > ./ait install --profile web --dry-run  # resolve & preview (installs nothing)
 > ./ait install --profile mobile --with ghidra --without amass
 > ./ait doctor | ./ait update | ./ait uninstall
@@ -29,15 +29,14 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 >
 > The catalog ([`catalog/tools.yaml`](catalog/tools.yaml)) is the source of truth,
 > parsed with a pinned, checksum-verified `yq`; profiles (`minimal`, `web`, `api`,
-> `mobile`, `code`, `vps`, `full`, `ai`) resolve by tag with `--with`/`--without`.
-> Release binaries are matched per-architecture and checksum-verified where upstream
-> publishes checksums, and `--dry-run` is fully honest. The original
+> `mobile`, `code`, `vps`, `all`, `ai`) resolve by tag with `--with`/`--without`.
+> Release binaries are pinned per architecture and checksum-verified, and
+> `--dry-run` is fully honest. The original
 > `./install.sh [--minimal|--full|--mobile]` bootstrap still works too.
 >
-> **Coming soon** (see [`PLAN.md`](PLAN.md)): verified `lib/methods/` with pinned
-> checksums and a manifest-based uninstall, the full curated catalog (iOS, Flutter,
-> GraphQL, SAST, …), the interactive menu, `ait frida-server` / `ait proxy-ca`, the
-> WSL networking toggle, and the Windows companion.
+> **Coming soon** (see [`PLAN.md`](PLAN.md)): `ait frida-server` / `ait proxy-ca`,
+> the WSL networking toggle, the Windows companion, and the container CI matrix
+> (Ubuntu 22.04/24.04, Debian 12, Kali).
 
 ---
 
@@ -119,10 +118,10 @@ The menu works over SSH and in WSL. If `whiptail` isn't available it falls back 
 ```bash
 ./ait install --profile web           # web AppSec workstation
 ./ait install --profile mobile        # Android + iOS host tooling
-./ait install --profile full          # web + mobile + api + code review
+./ait install --profile all          # web + mobile + api + code review
 ./ait install --profile vps           # headless recon box (no GUI apps)
 ./ait install --profile web --with ghidra,codeql --without amass
-./ait install --profile full --dry-run   # show exactly what would happen
+./ait install --profile all --dry-run   # show exactly what would happen
 ```
 
 Then:
@@ -162,7 +161,7 @@ Profiles are bundles of catalog tags. Combine them, or fine-tune with `--with` /
 | `code` | Source review / SAST / SCA | minimal + Opengrep/Semgrep, secrets scanners, SBOM & dependency scanners |
 | `vps` | Headless recon server | minimal + recon + nuclei, no GUI apps, tuned for long runs in `tmux` |
 | `ai` | Agent-assisted testing | AI coding CLIs + MCP servers for Burp, Caido, Ghidra and Frida (opt-in) |
-| `full` | Everything above except `ai` | web + api + mobile + code |
+| `all` | Everything above except `ai` | web + api + mobile + code |
 
 Run `ait list --profile web` to see the exact contents of any profile.
 

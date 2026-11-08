@@ -56,12 +56,14 @@ catalog_profile_exists() { local p; p=$(catalog_profiles); grep -qx "$1" <<<"$p"
 catalog_profile_tags() { q ".profiles.$1 // [] | .[]" "$PROFILES_YAML"; }
 
 # --- tools ---
-# One line per tool: name <TAB> tags(csv) <TAB> method <TAB> desc <TAB> opt_in <TAB> bin
-# Every column is always non-empty, so IFS=$'\t' read never collapses tabs.
+# One line per tool: name <TAB> tags(csv) <TAB> method <TAB> desc <TAB> opt_in
+# <TAB> bin <TAB> category. Every column is always non-empty, so IFS=$'\t'
+# read never collapses tabs.
 catalog_tools_tsv() {
-  q '.tools[] | [.name, (.tags | join(",")), .method, .desc, (.opt_in // false), (.bin // .name)] | @tsv' "$TOOLS_YAML"
+  q '.tools[] | [.name, (.tags | join(",")), .method, .desc, (.opt_in // false), (.bin // .name), .category] | @tsv' "$TOOLS_YAML"
 }
 catalog_tool_names() { q '.tools[].name' "$TOOLS_YAML"; }
+catalog_categories() { q '[.tools[].category] | unique | .[]' "$TOOLS_YAML"; }
 catalog_tool_exists() { local n; n=$(catalog_tool_names); grep -qx "$1" <<<"$n"; }
 # field of a single tool (empty string if absent/null)
 catalog_tool_field() {
@@ -106,7 +108,11 @@ catalog_resolve_tsv() {
     ((.platforms // ["linux", "wsl"]) | join(",")),
     (if .category == "runtime" then 0
      elif ((.apt_deps // []) | length) > 0 then 1
-     else 2 end)
+     else 2 end),
+    .method,
+    (if ((.apt_deps // []) | length) > 0 then "1" else "0" end),
+    (.bin // .name),
+    .desc
   ] | @tsv' "$TOOLS_YAML"
 }
 
@@ -144,7 +150,9 @@ resolve_tools() {
 
   declare -A sel=() prio_of=() cat_of=()
   local name tagcsv optin category gui platforms prio item
-  while IFS=$'\t' read -r name tagcsv optin category gui platforms prio; do
+  # Read every column: with fewer variables, the last one swallows the rest of
+  # the line (including tabs), which corrupts the sort key.
+  while IFS=$'\t' read -r name tagcsv optin category gui platforms prio _ _ _ _; do
     [[ -z "$name" ]] && continue
     prio_of[$name]=$prio; cat_of[$name]=$category
     [[ "$optin" == true ]] && continue
@@ -162,7 +170,7 @@ resolve_tools() {
     if grep -qx -- "$item" <<<"$(cut -f1 <<<"$tsv")"; then
       sel[$item]=1
     else
-      while IFS=$'\t' read -r name tagcsv _ _ _ platforms _; do
+      while IFS=$'\t' read -r name tagcsv _ _ _ platforms _ _ _ _ _; do
         [[ -z "$name" ]] && continue
         _tags_intersect "$tagcsv" "$item" || continue
         _platform_allowed "$platforms" "$platform" || continue

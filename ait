@@ -14,13 +14,17 @@ for _m in github_release uv git_venv docker official_archive manual; do
   # shellcheck disable=SC1090
   source "$ROOT/lib/methods/$_m.sh"
 done
+# shellcheck source=lib/menu.sh
+source "$ROOT/lib/menu.sh"
 
 usage() {
   cat <<'EOF'
 Usage: ait <command> [options]
 
 Commands:
-  list       Show the catalog (optionally filtered by profile)
+  (none)     Open the interactive menu
+  menu       Open the interactive menu
+  list       Show the catalog (optionally filtered by profile/category)
   install    Install a profile's tools (resolved from the catalog)
   doctor     Check installed tools
   update     Update apt, runtimes, release tools, templates & wordlists
@@ -33,6 +37,7 @@ Install/list options:
   --dry-run          (install) show what would happen, change nothing
   --yes              (install) do not prompt for confirmation
   --no-shell         (install) skip editing your shell rc
+  --category NAME    (list) show only one category (android, recon, vuln, ...)
   --installed        (list) show only tools already present
   --json             (list) machine-readable output
 
@@ -45,11 +50,13 @@ EOF
 }
 
 # --- argument parsing shared by list/install ---
-PROFILE=''; WITH=''; WITHOUT=''; JSON=0; INSTALLED_ONLY=0
+PROFILE=''; WITH=''; WITHOUT=''; JSON=0; INSTALLED_ONLY=0; CATEGORY=''
 parse_common_args() {
   while (($#)); do
     case "$1" in
       --profile) PROFILE=$2; shift 2 ;;
+      --category) CATEGORY=$2; shift 2 ;;
+      --category=*) CATEGORY=${1#*=}; shift ;;
       --profile=*) PROFILE=${1#*=}; shift ;;
       --with) WITH=$2; shift 2 ;;
       --with=*) WITH=${1#*=}; shift ;;
@@ -82,21 +89,27 @@ ait_list() {
   # Set of names to show (newline-delimited); grep -Fxq tests membership.
   local names; names=$(_selected_names)
 
-  # One catalog pass gives name/desc/bin for every tool (other columns ignored).
-  local name desc bin present first=1
-  if ((JSON)); then printf '['; else printf '%-24s %-10s %s\n' 'TOOL' 'STATUS' 'DESCRIPTION'; fi
+  if [[ -n "$CATEGORY" ]]; then
+    local cats; cats=$(catalog_categories)
+    grep -qx -- "$CATEGORY" <<< "$cats" || die "Unknown category: $CATEGORY (one of: $(paste -sd, - <<< "$cats"))"
+  fi
 
-  while IFS=$'\t' read -r name _ _ desc _ bin; do
+  # One catalog pass gives name/desc/bin/category (other columns ignored).
+  local name desc bin cat present first=1
+  if ((JSON)); then printf '['; else printf '%-24s %-10s %-14s %s\n' 'TOOL' 'STATUS' 'CATEGORY' 'DESCRIPTION'; fi
+
+  while IFS=$'\t' read -r name _ _ desc _ bin cat; do
     [[ -z "$name" ]] && continue
+    [[ -n "$CATEGORY" && "$cat" != "$CATEGORY" ]] && continue
     grep -Fxq "$name" <<< "$names" || continue
     present=false; command -v "$bin" >/dev/null 2>&1 && present=true
     ((INSTALLED_ONLY)) && [[ "$present" == false ]] && continue
     if ((JSON)); then
       ((first)) || printf ','; first=0
-      printf '{"name":"%s","installed":%s}' "$name" "$present"
+      printf '{"name":"%s","category":"%s","installed":%s}' "$name" "$cat" "$present"
     else
       local status='-'; [[ "$present" == true ]] && status='installed'
-      printf '%-24s %-10s %s\n' "$name" "$status" "$desc"
+      printf '%-24s %-10s %-14s %s\n' "$name" "$status" "$cat" "$desc"
     fi
   done < <(catalog_tools_tsv)
 
@@ -121,16 +134,28 @@ ait_install() {
     read -r -p "Proceed? [y/N] " a; [[ "$a" =~ ^[Yy]$ ]] || exit 0
   fi
 
-  init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
-  export PROFILE
-  local name
-  while IFS= read -r name; do
-    [[ -z "$name" ]] && continue
-    install_tool "$name" || record_failure "$name" 'installer error'
-  done <<< "$names"
+  local arr=()
+  mapfile -t arr <<< "$names"
+  ait_install_names "$PROFILE" "${arr[@]}"
+}
 
+# ait_install_names <label> <tool...> — install an explicit list. Shared by the
+# CLI (profile resolution) and the interactive menu (manual selection).
+ait_install_names() {
+  local label=$1; shift
+  [[ $# -gt 0 ]] || { warn 'No tools selected.'; return 0; }
+  PROFILE=$label; export PROFILE
+  init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
+  local name
+  for name in "$@"; do
+    [[ -z "$name" ]] && continue
+    catalog_tool_exists "$name" || { warn "$name: not in catalog; skipping"; record_failure "$name" 'not in catalog'; continue; }
+    install_tool "$name" || record_failure "$name" 'installer error'
+  done
   if ((${NO_SHELL:-0} == 0)); then configure_shell; fi
   report_failures
+  # Release eagerly: the interactive menu installs more than once in one process.
+  release_lock
 }
 
 # Remove one manifest tool by its recorded method + paths.
@@ -201,7 +226,7 @@ ait_doctor() {
   bootstrap_yq
   ((json)) && printf '['
   local first=1 name method desc bin status ver want chk
-  while IFS=$'\t' read -r name _ method desc _ bin; do
+  while IFS=$'\t' read -r name _ method desc _ bin _; do
     [[ -z "$name" ]] && continue
     if ! command -v "$bin" >/dev/null 2>&1; then
       if manifest_has "$name"; then status=missing; else continue; fi
@@ -279,6 +304,7 @@ ait_update() {
   command -v pdtm >/dev/null && { pdtm -ua || true; }
   command -v nuclei >/dev/null && { nuclei -update-templates || true; }
   report_failures
+  release_lock
 }
 
 main() {
@@ -290,7 +316,7 @@ main() {
     doctor) ait_doctor "$@" ;;
     update) ait_update "$@" ;;
     uninstall) ait_uninstall "$@" ;;
-    '' | menu) warn 'The interactive menu arrives in a later phase; use: ait install --profile ...'; usage; exit 0 ;;
+    '' | menu) menu_main ;;
     -h | --help | help) usage ;;
     *) die "Unknown command: $cmd (try: ait --help)" ;;
   esac

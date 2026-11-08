@@ -6,6 +6,37 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Phase 3 — Interactive menu
+
+#### Added
+- `./ait` (and `ait menu`) opens the interactive menu: Mobile, Web, All,
+  Update existing, and the WSL networking entry on WSL.
+- Mobile/Web submenus offer Install all or Select tools; the checklist shows each
+  tool's description, category, installed marker and opt-in state, with GUI tools
+  unticked and marked "(recommended on Windows)" on WSL.
+- `whiptail` UI sized from the terminal, with a numbered text fallback that
+  accepts `1,3,5-9` and offers to install `whiptail`.
+- `ait list --category NAME` (and category in `--json`).
+- Bats tests for the text fallback, row metadata and menu → profile mapping.
+
+### Phase 2E — Console-script git_venv tools
+
+#### Fixed
+- `git_venv` installs the cloned project when it has no root script (ghauri's
+  `setup.py` console entry point), instead of looking for a non-existent `*.py`.
+
+### Phase 2D — CI-discovered installer fixes
+
+#### Fixed
+- `official_archive` reads per-platform `sha256` maps by key instead of passing
+  the whole YAML map to the verifier (Caido, jadx, apktool, Opengrep).
+- `github_release` accepts versioned binaries containing dots
+  (`ipatool-2.7.0-linux-amd64`), then falls back to any executable.
+- `hermes-dec` now exposes its real `hbc-decompiler` entry point.
+- `ghauri` is installed from Git (not available on PyPI).
+- Removed `jq`/`grep` pipelines into `head` that could fail via SIGPIPE under
+  `pipefail`.
+
 ### Phase 2C — Catalog completion
 
 #### Added

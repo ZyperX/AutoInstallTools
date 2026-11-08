@@ -17,7 +17,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck bats
       - name: Lint
         run: make lint
-      - name: Catalog, resolver, checksum, manifest & dry-run
+      - name: Catalog, resolver, bats, README and link checks
         run: make test
 
   powershell:

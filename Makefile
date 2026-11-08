@@ -6,12 +6,20 @@ SCRIPTS := install.sh update.sh doctor.sh uninstall.sh \
            $(wildcard lib/*.sh) $(wildcard lib/methods/*.sh) $(wildcard modules/*.sh) \
            $(wildcard scripts/*.sh) $(wildcard tests/*.sh)
 
-.PHONY: help lint test integration
+.PHONY: help lint test integration readme links
 
 help:
 	@echo "make lint  - shellcheck every script"
-	@echo "make test  - lint, validate the catalog, resolver + dry-run tests"
+	@echo "make test  - lint, catalog, bats, README and link checks"
+	@echo "make readme - regenerate the README catalog tables"
+	@echo "make links - check local Markdown links"
 	@echo "make integration - resolve web/mobile profiles in a clean Ubuntu container"
+
+readme:
+	./scripts/gen-readme.sh --write
+
+links:
+	./scripts/check-links.sh
 
 lint:
 	shellcheck -x ait $(SCRIPTS)
@@ -25,6 +33,8 @@ test: lint
 	  if command -v bats >/dev/null 2>&1; then bats tests/*.bats; \
 	  else echo "bats not found; running shell tests directly"; \
 	       bash tests/validate-catalog.sh && bash tests/resolver.sh; fi; \
+	  ./scripts/gen-readme.sh --check; \
+	  ./scripts/check-links.sh; \
 	  bash tests/dry-run.sh
 
 # Container smoke check for the real entrypoint and yq bootstrap. Keep the

@@ -13,9 +13,14 @@ record how hashes were obtained when upstream does not publish them. Avoid
 install-time scripts piped directly into a shell, credential handling, and
 tools with overlapping purpose unless there is a clear tradeoff.
 
-Run `make lint` and `make test` before submitting. Include the command output
-and note any platform or upstream behavior that could not be checked. Keep
-changes focused and use conventional commit subjects where practical.
+See [`docs/adding-tools.md`](docs/adding-tools.md) for the entry fields, the
+inclusion criteria, platform mappings and the pinning workflow.
+
+Run `make lint` and `make test` before submitting. Regenerate the README
+catalog tables with `make readme` if the catalog changed, and run `make links`
+to check documentation references. Include the command output and note any
+platform or upstream behavior that could not be checked. Keep changes focused
+and use conventional commit subjects where practical.
 
 ## Code changes
 

@@ -29,9 +29,8 @@ install_git_venv() (
     "$dest/.venv/bin/pip" install --quiet -r "$dest/requirements.txt" || { record_failure "$name" 'pip install failed'; return 0; }
   fi
 
-  # Entry point: catalog `entry` wins, else <bin>.py, else a same-named .py,
-  # else the venv's console script.
-  local entry='' declared
+  # Entry point: catalog `entry` wins, else <bin>.py, else a same-named .py.
+  local entry='' declared cand
   declared=$(catalog_tool_field "$name" entry)
   if [[ -n "$declared" ]]; then
     [[ -f "$dest/$declared" ]] && entry="$dest/$declared"
@@ -39,6 +38,14 @@ install_git_venv() (
     for cand in "$bin.py" "${bin//-/_}.py" "$name.py"; do
       [[ -f "$dest/$cand" ]] && { entry="$dest/$cand"; break; }
     done
+  fi
+
+  # No root script (e.g. ghauri ships a package + console entry point): install
+  # the project itself so its console script lands in the venv.
+  if [[ -z "$entry" && ! -x "$dest/.venv/bin/$bin" ]] \
+     && [[ -f "$dest/pyproject.toml" || -f "$dest/setup.py" ]]; then
+    "$dest/.venv/bin/pip" install --quiet "$dest" \
+      || { record_failure "$name" 'project install failed'; return 0; }
   fi
   if [[ -n "$entry" ]]; then
     cat > "$BIN_DIR/$bin" <<EOF

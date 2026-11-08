@@ -246,6 +246,10 @@ ait_uninstall() {
     *) die "Unknown option: $1" ;;
   esac; done
   if ! dryrun; then manifest_init; fi
+  if ((apt_ok)) && is_macos; then
+    warn '--apt is Linux-only; Homebrew packages are removed with the tool entry'
+    apt_ok=0
+  fi
   local list
   if ((all)); then list=$(manifest_tools)
   elif [[ -n "$tools" ]]; then list=$(tr ',' '\n' <<< "$tools")
@@ -265,8 +269,9 @@ ait_uninstall() {
 
   if ((all)) && ! dryrun; then
     for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-      [[ -f "$rc" ]] && sed -i '/# >>> AIT >>>/,/# <<< AIT <<</d' "$rc"
+      [[ -f "$rc" ]] && sed_inplace '/# >>> AIT >>>/,/# <<< AIT <<</d' "$rc"
     done
+    vps_untune
     rm -f -- "$AIT_DESKTOP_DIR"/ait-*.desktop 2>/dev/null || true
   fi
 }
@@ -305,6 +310,11 @@ ait_doctor() {
   done < <(catalog_tools_tsv)
   ((json)) && { printf ']\n'; return 0; }
 
+  ok "Platform: $(platform_line)"
+  if is_macos; then
+    if brew_available; then ok "Homebrew: $(brew --version 2>/dev/null | head -n1)"
+    else warn 'Homebrew not found (macOS installs need it: https://brew.sh)'; fi
+  fi
   case ":$PATH:" in *":$BIN_DIR:"*) ok "PATH has $BIN_DIR" ;; *) warn "$BIN_DIR not on PATH" ;; esac
   case ":$PATH:" in *":$HOME/go/bin:"*) ok "PATH has $HOME/go/bin" ;; *) warn "$HOME/go/bin not on PATH" ;; esac
   if is_wsl; then

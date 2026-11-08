@@ -30,12 +30,14 @@ tools:
     tags: [core]
     method: apt
     apt: [ca-certificates, gnupg, lsb-release, software-properties-common, build-essential, unzip, zip, wget]
+    brew: [ca-certificates]
   - name: curl
     desc: Transfer data over HTTP and more
     category: core
     tags: [core]
     method: apt
     apt: [curl]
+    brew: [curl]
     check: curl --version
   - name: git
     desc: Distributed version control
@@ -43,6 +45,7 @@ tools:
     tags: [core]
     method: apt
     apt: [git]
+    brew: [git]
     check: git --version
   - name: jq
     desc: Command-line JSON processor
@@ -50,6 +53,7 @@ tools:
     tags: [core]
     method: apt
     apt: [jq]
+    brew: [jq]
     check: jq --version
   - name: yq
     desc: YAML/JSON/XML processor (mikefarah)
@@ -58,6 +62,7 @@ tools:
     method: github_release
     repo: mikefarah/yq
     bin: yq
+    brew: [yq]
     check: yq --version
     asset:
       linux_amd64: yq_linux_amd64.tar.gz
@@ -79,6 +84,7 @@ tools:
     method: github_release
     repo: eza-community/eza
     bin: eza
+    brew: [eza]
     asset:
       linux_amd64: eza_x86_64-unknown-linux-gnu.tar.gz
       linux_arm64: eza_aarch64-unknown-linux-gnu.tar.gz
@@ -92,6 +98,7 @@ tools:
     tags: [core]
     method: apt
     apt: [ripgrep]
+    brew: [ripgrep]
     bin: rg
     check: rg --version
   - name: fd
@@ -100,6 +107,8 @@ tools:
     tags: [core]
     method: apt
     apt: [fd-find]
+    brew: [fd]
+    brew_bin: fd
     bin: fdfind
     check: fdfind --version
   - name: bat
@@ -108,6 +117,8 @@ tools:
     tags: [core]
     method: apt
     apt: [bat]
+    brew: [bat]
+    brew_bin: bat
     bin: batcat
     check: batcat --version
   - name: tmux
@@ -116,48 +127,56 @@ tools:
     tags: [core]
     method: apt
     apt: [tmux]
+    brew: [tmux]
   - name: zoxide
     desc: Smarter cd that learns your habits
     category: core
     tags: [core]
     method: apt
     apt: [zoxide]
+    brew: [zoxide]
   - name: fzf
     desc: Fuzzy finder for the terminal
     category: core
     tags: [core]
     method: apt
     apt: [fzf]
+    brew: [fzf]
   - name: ncdu
     desc: Disk usage analyzer (TUI)
     category: core
     tags: [core]
     method: apt
     apt: [ncdu]
+    brew: [ncdu]
   - name: btop
     desc: Resource monitor (TUI)
     category: core
     tags: [core]
     method: apt
     apt: [btop]
+    brew: [btop]
   - name: tree
     desc: List directories as a tree
     category: core
     tags: [core]
     method: apt
     apt: [tree]
+    brew: [tree]
   - name: socat
     desc: Multipurpose relay / socket tool
     category: core
     tags: [core]
     method: apt
     apt: [socat]
+    brew: [socat]
   - name: httpie
     desc: Human-friendly HTTP client
     category: core
     tags: [core]
     method: apt
     apt: [httpie]
+    brew: [httpie]
     bin: http
     check: http --version
   - name: whiptail
@@ -166,6 +185,8 @@ tools:
     tags: [core]
     method: apt
     apt: [whiptail]
+    brew: [newt]
+    brew_bin: whiptail
     check: whiptail --version
   - name: uro
     desc: Deduplicate URLs from a list
@@ -181,6 +202,8 @@ tools:
     tags: [runtime]
     method: apt
     apt: [python3, python3-pip, pipx]
+    brew: [python@3.13, pipx]
+    brew_bin: python3
     bin: python3
     check: python3 --version
   - name: jdk
@@ -199,6 +222,7 @@ tools:
     tags: [runtime]
     method: runtime
     runtime: go
+    brew: [go]
     bin: go
     check: go version
   - name: rust
@@ -207,6 +231,7 @@ tools:
     tags: [runtime]
     method: runtime
     runtime: rust
+    brew: [rustup]
     bin: cargo
   - name: node
     desc: Node.js 22 LTS (NodeSource)
@@ -214,6 +239,7 @@ tools:
     tags: [runtime]
     method: runtime
     runtime: node
+    brew: [node]
     bin: node
     check: node --version
   - name: uv
@@ -222,6 +248,7 @@ tools:
     tags: [runtime]
     method: runtime
     runtime: uv
+    brew: [uv]
     bin: uv
     check: uv --version
   - name: pnpm
@@ -264,6 +291,7 @@ tools:
     method: go
     go: github.com/projectdiscovery/naabu/v2/cmd/naabu
     apt_deps: [libpcap-dev]
+    brew_deps: [libpcap]
   - name: uncover
     desc: Query Shodan/Censys/FOFA from CLI
     category: recon
@@ -400,6 +428,7 @@ tools:
     method: github_release
     repo: owasp-amass/amass
     bin: amass
+    kali_apt: [amass]
     notes: Heavy; opt-in via --with amass.
     asset:
       linux_amd64: amass_linux_amd64.tar.gz
@@ -415,6 +444,7 @@ tools:
     tags: [core, recon]
     method: apt
     apt: [nmap, masscan]
+    brew: [nmap]
     bin: nmap
   - name: rustscan
     desc: Very fast port discovery
@@ -467,6 +497,7 @@ tools:
     tags: [web, mobile]
     gui: true
     method: official_archive
+    brew_cask: [caido]
     version: v0.59.0
     url:
       linux_amd64: https://caido.download/releases/v0.59.0/caido-desktop-v0.59.0-linux-x86_64.AppImage
@@ -491,6 +522,7 @@ tools:
     gui: true
     opt_in: true
     method: manual
+    brew_cask: [burp-suite]
     bin: burpsuite
     notes: Download Community or Pro from portswigger.net; you accept its licence.
   - name: zap
@@ -501,6 +533,7 @@ tools:
     opt_in: true
     method: official_archive
     repo: zaproxy/zaproxy
+    brew_cask: [zap]
     asset:
       linux_amd64: ZAP_2.17.0_Crossplatform.zip
       linux_arm64: ZAP_2.17.0_Crossplatform.zip
@@ -525,6 +558,7 @@ tools:
     method: github_release
     repo: epi052/feroxbuster
     bin: feroxbuster
+    kali_apt: [feroxbuster]
     check: feroxbuster --version
     asset:
       linux_amd64: x86_64-linux-feroxbuster.tar.gz
@@ -626,6 +660,7 @@ tools:
     tags: [web, api]
     method: apt
     apt: [sqlmap]
+    brew: [sqlmap]
   - name: ghauri
     desc: SQLi tool, strong where sqlmap fails
     category: vuln
@@ -879,6 +914,7 @@ tools:
     tags: [mobile]
     method: official_archive
     version: r37.0.2
+    brew_cask: [android-platform-tools]
     url: https://dl.google.com/android/repository/platform-tools_r37.0.2-linux.zip
     sha256: dfc80a84a6710e5674415d4b55ae599c01aa4961822f53097d747472f410f157
     bin: adb
@@ -890,6 +926,7 @@ tools:
     tags: [mobile]
     method: official_archive
     repo: iBotPeaches/Apktool
+    brew: [apktool]
     asset:
       linux_amd64: apktool_3.0.3.jar
       linux_arm64: apktool_3.0.3.jar
@@ -905,6 +942,7 @@ tools:
     tags: [mobile]
     method: official_archive
     repo: skylot/jadx
+    brew: [jadx]
     asset:
       linux_amd64: jadx-1.5.6.zip
       linux_arm64: jadx-1.5.6.zip
@@ -1013,6 +1051,7 @@ tools:
     gui: true
     method: apt
     apt: [scrcpy]
+    brew: [scrcpy]
   - name: mobsf
     desc: Static/dynamic mobile analysis suite
     category: android
@@ -1060,6 +1099,7 @@ tools:
     tags: [mobile]
     method: apt
     apt: [libimobiledevice-utils]
+    brew: [libimobiledevice]
     bin: ideviceinfo
   - name: ipsw
     desc: Firmware & Mach-O research toolkit
@@ -1067,6 +1107,7 @@ tools:
     tags: [mobile]
     method: github_release
     repo: blacktop/ipsw
+    brew: [ipsw]
     bin: ipsw
     asset:
       linux_amd64: ipswd_3.1.743_linux_x86_64.tar.gz
@@ -1082,6 +1123,7 @@ tools:
     tags: [mobile]
     method: github_release
     repo: majd/ipatool
+    brew: [ipatool]
     bin: ipatool
     asset:
       linux_amd64: ipatool-2.7.0-linux-amd64.tar.gz
@@ -1130,6 +1172,7 @@ tools:
     tags: [cloud]
     method: runtime
     runtime: awscli
+    brew: [awscli]
     bin: aws
   - name: k9s
     desc: Kubernetes cluster TUI
@@ -1137,6 +1180,7 @@ tools:
     tags: [cloud]
     method: github_release
     repo: derailed/k9s
+    brew: [k9s]
     asset:
       linux_amd64: k9s_Linux_amd64.tar.gz
       linux_arm64: k9s_Linux_arm64.tar.gz
@@ -1151,6 +1195,7 @@ tools:
     tags: [cloud]
     method: github_release
     repo: ahmetb/kubectx
+    brew: [kubectx]
     asset:
       linux_amd64: kubectx_v0.11.0_linux_x86_64.tar.gz
       linux_arm64: kubectx_v0.11.0_linux_arm64.tar.gz
@@ -1165,14 +1210,17 @@ tools:
     tags: [cloud]
     method: apt
     apt: [docker.io]
+    brew: [docker, colima]
     bin: docker
     check: docker --version
+    notes: On macOS the docker formula is the CLI and colima provides the VM.
   - name: docker-compose
     desc: Compose v2 Docker CLI plugin
     category: container
     tags: [cloud]
     method: github_release
     repo: docker/compose
+    brew: [docker-compose]
     bin: docker-compose
     dest: ~/.docker/cli-plugins/docker-compose
     asset:
@@ -1189,6 +1237,7 @@ tools:
     tags: [cloud]
     method: github_release
     repo: jesseduffield/lazydocker
+    brew: [lazydocker]
     asset:
       linux_amd64: lazydocker_0.25.2_Linux_x86_64.tar.gz
       linux_arm64: lazydocker_0.25.2_Linux_arm64.tar.gz
@@ -1203,6 +1252,7 @@ tools:
     tags: [cloud]
     method: github_release
     repo: wagoodman/dive
+    brew: [dive]
     asset:
       linux_amd64: dive_0.13.1_linux_amd64.tar.gz
       linux_arm64: dive_0.13.1_linux_arm64.tar.gz

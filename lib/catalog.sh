@@ -101,9 +101,15 @@ catalog_tool_str() {
   [[ "$out" == *$'\n'* || "$out" =~ ^[a-z0-9_]+:\ [^[:space:]] ]] && out=''
   printf '%s' "$out"
 }
-# a tool's bin (defaults to its name)
+# a tool's bin (defaults to its name). On macOS a catalog `brew_bin` wins,
+# because Homebrew names some binaries differently (fd/bat, newt's whiptail).
 catalog_tool_bin() {
-  local b; b=$(catalog_tool_field "$1" bin)
+  local b
+  if [[ "$(detect_platform)" == macos ]]; then
+    b=$(catalog_tool_field "$1" brew_bin)
+    [[ -n "$b" ]] && { printf '%s' "$b"; return 0; }
+  fi
+  b=$(catalog_tool_field "$1" bin)
   [[ -n "$b" ]] && printf '%s' "$b" || printf '%s' "$1"
 }
 
@@ -218,7 +224,18 @@ resolve_tools() {
     [[ -z "$item" ]] && continue
     _require_selector "$item"
     if grep -qx -- "$item" <<<"$(cut -f1 <<<"$tsv")"; then
-      sel[$item]=1
+      # An explicit tool name is still filtered by platform (e.g. a Linux-only
+      # release must not be selected on macOS).
+      local row
+      row=$(awk -F'\t' -v n="$item" '$1 == n { print; exit }' <<<"$tsv")
+      IFS=$'\t' read -r _ _ _ _ _ platforms _ method _ _ _ brew _ darwin <<<"$row"
+      [[ "$platforms" == "-" ]] && platforms=''
+      [[ "$brew" == "-" ]] && brew=''
+      if _platform_selectable "$platforms" "$method" "$brew" "$darwin" "$platform"; then
+        sel[$item]=1
+      else
+        warn "$item is not available on $platform; skipping"
+      fi
     else
       while IFS=$'\t' read -r name tagcsv _ _ _ platforms _ method _ _ _ brew _ darwin; do
         [[ -z "$name" ]] && continue

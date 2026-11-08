@@ -2,12 +2,12 @@
 
 # AutoInstallTools
 
-**A catalog-driven installer for web and mobile AppSec workstations on Linux and WSL2.**
+**A catalog-driven installer for web and mobile AppSec workstations on Linux, WSL2 and macOS (beta).**
 
 Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove.
 
 [![CI](https://github.com/ZyperX/AutoInstallTools/actions/workflows/ci.yml/badge.svg)](https://github.com/ZyperX/AutoInstallTools/actions/workflows/ci.yml)
-![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2-blue)
+![Platforms](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Debian%20%7C%20Kali%20%7C%20WSL2%20%7C%20macOS-blue)
 ![Shell](https://img.shields.io/badge/shell-bash%205%2B-green)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
@@ -42,8 +42,10 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 >
 > The CLI, catalog, interactive menu, mobile helpers, WSL networking support,
 > and optional Windows companion are implemented. Ubuntu on Linux/WSL2 is the
-> primary use case. Other distributions and macOS support are not part of the
-> project's current validation target. The project has not made a v1 release.
+> primary use case; Debian 12 and Kali are supported and covered by the CI
+> matrix. macOS is a Homebrew-based beta: Bash 5 and Homebrew are required, and
+> tools without a macOS mapping are skipped. Arch and Fedora are not supported
+> yet. The project has not made a v1 release.
 
 ---
 
@@ -68,10 +70,13 @@ What makes it different from the hundred other "install-all-the-tools" scripts:
 
 ### Requirements
 
-- Ubuntu 22.04 or newer, either on Linux or under WSL2. Other Debian-family
-  systems may work, but are outside the primary validation target.
-- Bash 5+, `curl`, and `sudo` for system packages. `git`, `jq`, and `ca-certificates`
-  are installed as needed by the selected tools.
+- Ubuntu 22.04 or newer on Linux or WSL2 (primary). Debian 12 and Kali Linux
+  are supported and covered by CI.
+- macOS 13+ is a **beta** target: install Bash 5+ and Homebrew, then use
+  `./ait` (the legacy `./install.sh` bootstrap stays Linux-only).
+- Bash 5+, `curl`, and either `sudo` (Linux) or Homebrew (macOS) for system
+  packages. `git`, `jq`, and `ca-certificates` are installed as needed by the
+  selected tools.
 - An internet connection to the configured package repositories and upstream
   release hosts.
 - For Android device work: an Android device or emulator, Android debugging
@@ -79,9 +84,10 @@ What makes it different from the hundred other "install-all-the-tools" scripts:
   [Mobile testing on WSL2](#mobile-testing-on-wsl2).
 
 AutoInstallTools places user-managed tools in `~/.local` and its state in
-`~/.local/share/ait`. `sudo` is used for system packages. Some catalog entries
-are opt-in, require a separate license choice, or need manual setup; inspect
-the dry-run and tool notes before proceeding.
+`~/.local/share/ait`. `sudo` is used for system packages on Linux; Homebrew is
+used on macOS. Some catalog entries are opt-in, require a separate license
+choice, or need manual setup; inspect the dry-run and tool notes before
+proceeding.
 
 ```bash
 git clone https://github.com/ZyperX/AutoInstallTools.git
@@ -169,14 +175,17 @@ ait doctor           # verify everything works
 
 | Platform | Status | Notes |
 |---|---|---|
-| Ubuntu 22.04+ | Primary | Linux and WSL2 are the main target |
-| WSL2 with Ubuntu | Supported | WSLg GUI support and WSL networking helpers are documented below |
-| Debian 12 / Kali Linux | Best effort | Platform-specific package choices are present; not part of the current validation target |
-| macOS | Out of scope | Some Homebrew code exists, but macOS is not a supported target |
+| Ubuntu 22.04 / 24.04 | Primary | Linux and WSL2 are the main target; CI runs both |
+| Debian 12 | Supported | CI runs the web and mobile profiles |
+| Kali Linux | Supported | Prefers Kali packages when they are at least the pinned version; CI runs the web and mobile profiles |
+| WSL2 | Supported | WSLg GUI support and WSL networking helpers are documented below |
+| macOS | Beta | Homebrew-based; Bash 5 and Homebrew required; Linux-only tools without a mapping are skipped |
 | Arch / Fedora | Not supported | Package and installer mappings are not provided |
 
 Release catalog entries commonly support `x86_64` and `arm64` (`aarch64`).
-Availability depends on each upstream project's published assets.
+Availability depends on each upstream project's published assets. See
+[`docs/platforms.md`](docs/platforms.md) for mapping fields, detection and the
+macOS beta rules.
 
 ---
 
@@ -485,8 +494,15 @@ install methods (`apt`, `brew`, `github_release`, `go`, `uv`, `npm`, `cargo`,
 
 **Will it break my existing setup?** Tools you already have are detected and skipped. Shell changes go in a single, clearly marked block in your rc file and are removed by `ait uninstall`.
 
-**Why not just use Kali?** Kali is a good option. AutoInstallTools targets an
-Ubuntu/WSL workflow and uses upstream releases for many fast-moving tools.
+**Why not just use Kali?** Kali is supported. AutoInstallTools uses Kali's
+packages when they are at least the pinned upstream version and falls back to
+pinned upstream releases for fast-moving tools. Ubuntu/WSL remains the primary
+development and CI target.
+
+**Does it work on macOS?** Yes, as a beta. Install Bash 5 and Homebrew, then use
+`./ait`. Tools with a `brew`/`brew_cask` mapping or a portable method install
+normally; Linux-only release assets without a mapping are skipped with a clear
+warning. See [`docs/platforms.md`](docs/platforms.md).
 
 **Why isn't X installed?** Check `docs/not-included.md`, then open an issue with the tool, why it's better than what's here, and its maintenance status.
 

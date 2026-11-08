@@ -145,7 +145,8 @@ ait_frida_server() (
     *) die "Unknown option: $1 (try: ait frida-server --help)" ;;
   esac; done
 
-  [[ ${DRY_RUN:-0} == 1 ]] || require_linux
+  [[ ${DRY_RUN:-0} == 1 ]] || [[ "$(uname -s)" == Linux || "$(uname -s)" == Darwin ]] \
+    || die 'frida-server needs Linux or macOS'
   command -v adb >/dev/null 2>&1 || die 'adb is required: ait install --profile mobile --with platform-tools'
   [[ ${DRY_RUN:-0} == 1 ]] || command -v frida >/dev/null 2>&1 || die 'frida is not installed: ait install --with frida-tools'
   if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then

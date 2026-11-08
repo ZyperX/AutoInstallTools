@@ -31,6 +31,40 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   docs, and explicit per-architecture checksum schema checks.
 - Apt method tests, checksum fail-closed tests, and CLI dry-run tests.
 
+### Phase 6 — Platforms & VPS
+
+#### Added
+- Platform layer (`lib/platform.sh`): distro detection from `/etc/os-release`,
+  `platform_line` for doctor/failure reports, and `AIT_OS_RELEASE`/
+  `AIT_PLATFORM` overrides for tests and cross-platform dry runs.
+- Debian 12 and Kali support in the CI matrix (web and mobile profiles), with
+  platform-specific package choices.
+- Kali package preference: a non-`apt` tool uses its `kali_apt` package only
+  when `apt-cache policy` reports a candidate at least as new as the pinned
+  `version`; stale Kali packages never replace a pinned upstream release.
+- macOS Homebrew beta (`lib/homebrew.sh`): per-tool `brew`, `brew_cask`,
+  `brew_bin` and `brew_deps` catalog mappings; portable methods run unchanged;
+  tools without a macOS path are skipped with a warning. `--apt` is rejected on
+  macOS, and uninstall removes Homebrew packages through the manifest.
+- Homebrew mappings for core tools, runtimes, proxies, Android/iOS tooling,
+  Kubernetes/container tools and cloud utilities (for example `nmap`,
+  `sqlmap`, `scrcpy`, `jadx`, `apktool`, Android platform-tools, Caido, Burp,
+  ZAP, `k9s`, `kubectx`, `dive`, `lazydocker`, `docker-compose`, `ipsw`,
+  `ipatool`, and `temurin@21`).
+- VPS tuning (`lib/tuning.sh`): idempotent tmux config plus shell open-file
+  limit block, with system-wide limits only when passwordless sudo is already
+  available; `ait uninstall --all` removes everything again.
+- `docs/platforms.md` and expanded schema documentation for the platform
+  mapping fields.
+- `tests/platform.bats`: distro fixtures, macOS resolver/filtering,
+  `brew_bin`, Homebrew idempotency and dry-run, Kali version comparison with a
+  fake `apt-cache`, and VPS tuning idempotency/undo/dry-run.
+
+#### Changed
+- `ait doctor` reports the detected platform and, on macOS, Homebrew status.
+- `ait frida-server` accepts macOS as well as Linux.
+- Shell rc edits and cleanup use the portable `sed_inplace` helper.
+
 ### Phase 5 — WSL & Windows
 
 #### Added

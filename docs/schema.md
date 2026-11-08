@@ -16,8 +16,13 @@ Adding a tool is a catalog-only change — no code edits.
 | `gui` | no | `true` for GUI apps; on WSL the menu labels these and leaves them unticked. |
 | `check` | no | Command `ait doctor` runs to confirm the tool works. |
 | `opt_in` | no | `true` = never selected by a profile; only via `--with`. |
-| `platforms` | no | List; default `[linux]`. |
+| `platforms` | no | List; default `[linux]` (WSL uses the Linux entries). |
 | `notes` | no | Free text (e.g. "superseded by X", extra dependencies). |
+| `brew` | no | Homebrew formula list; authoritative on macOS (beta). |
+| `brew_cask` | no | Homebrew cask list for GUI apps. |
+| `brew_bin` | no | Binary name installed by the formula when it differs from `bin` (e.g. `fd`, `bat`, `whiptail`). |
+| `brew_deps` | no | Formula prerequisites for a portable method, e.g. `libpcap` for `naabu`. |
+| `kali_apt` | no | Kali package names to prefer when the candidate is at least the pinned `version`. |
 
 ## Categories
 
@@ -47,6 +52,18 @@ Tags used by profiles: `core`, `runtime`, `recon`, `web`, `api`, `mobile`,
 | `docker` | yes | pull image + wrapper script |
 | `official_archive` | yes | vendor zip/tar + pinned `version` and SHA-256/checksum file |
 | `manual` | yes | print instructions, record as manual |
+
+## Platform mappings
+
+`brew`, `brew_cask`, `brew_bin` and `brew_deps` are extra fields rather than a
+separate method: the installer keeps the normal `method` and uses Homebrew
+first on macOS when a mapping exists. Portable methods (`uv`, `pipx`, `npm`,
+`go`, `cargo`, `git_venv`, `git`, `wget_mirror`, `docker`) run unchanged.
+
+`kali_apt` is also extra metadata. On Kali, a non-`apt` tool may use the Kali
+package instead of its pinned upstream release only when `apt-cache policy`
+reports a candidate at least as new as `version`. See
+[`platforms.md`](platforms.md).
 
 ## Pinning
 

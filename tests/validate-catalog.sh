@@ -71,13 +71,20 @@ while IFS= read -r p; do
   done < <(catalog_profile_tags "$p")
 done < <(catalog_profiles)
 
-# Pinned entries (have a version) must also carry a checksum.
+# Binary pins (github_release/official_archive) must also carry a checksum.
+# Package pins (uv/pipx) name an exact PyPI version and are verified by uv/pip.
 while IFS= read -r t; do
   [[ -z "$t" ]] && continue
   if [[ -z "$(catalog_tool_field "$t" sha256)" && -z "$(catalog_tool_field "$t" checksum_file)" ]]; then
     bad "$t: pinned (has version) but no sha256/checksum_file"
   fi
-done < <("$YQ" '.tools[] | select(.version != null) | .name' "$TOOLS_YAML")
+done < <("$YQ" '.tools[] | select(.version != null and (.method == "github_release" or .method == "official_archive")) | .name' "$TOOLS_YAML")
+
+# Package pins are only meaningful for the Python methods that honour them.
+while IFS= read -r t; do
+  [[ -z "$t" ]] && continue
+  bad "$t: version is only honoured by github_release, official_archive, uv and pipx"
+done < <("$YQ" '.tools[] | select(.version != null and (.method != "github_release" and .method != "official_archive" and .method != "uv" and .method != "pipx")) | .name' "$TOOLS_YAML")
 
 if ((fail)); then echo "catalog validation FAILED" >&2; exit 1; fi
 echo "catalog validation passed ($(catalog_tool_names | wc -l | tr -d ' ') tools)"

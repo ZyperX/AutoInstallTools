@@ -993,14 +993,17 @@ tools:
     tags: [mobile]
     method: uv
     pypi: frida-tools
+    version: "14.13.0"
     bin: frida
     check: frida --version
+    notes: Pinned with objection 1.12.5 (Frida 17 bridge split).
   - name: objection
     desc: Runtime mobile exploration on Frida
     category: android
     tags: [mobile]
     method: uv
     pypi: objection
+    version: "1.12.5"
   - name: scrcpy
     desc: Mirror & control the device screen
     category: android

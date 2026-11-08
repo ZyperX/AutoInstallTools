@@ -16,6 +16,8 @@ for _m in github_release uv git_venv docker official_archive manual; do
 done
 # shellcheck source=lib/menu.sh
 source "$ROOT/lib/menu.sh"
+# shellcheck source=lib/mobile.sh
+source "$ROOT/lib/mobile.sh"
 
 usage() {
   cat <<'EOF'
@@ -29,6 +31,8 @@ Commands:
   doctor     Check installed tools
   update     Update apt, runtimes, release tools, templates & wordlists
   uninstall  Remove AutoInstallTools-managed files
+  frida-server  Push and start a matching frida-server on the device
+  proxy-ca      Prepare a proxy CA as Android's <subject_hash_old>.0
 
 Install/list options:
   --profile NAME     one of: minimal web api mobile code vps all ai
@@ -46,6 +50,8 @@ Examples:
   ait list --profile web
   ait install --profile web --without amass --dry-run
   ait install --profile mobile --with ghidra --yes
+  ait frida-server --device emulator-5554
+  ait proxy-ca --burp ~/Downloads/cacert.der
 EOF
 }
 
@@ -261,16 +267,13 @@ ait_doctor() {
     ok 'WSL detected'
     if [[ -d /mnt/wslg ]]; then ok 'WSLg present (GUI apps supported)'; else warn 'WSLg not detected'; fi
   fi
-  if command -v adb >/dev/null 2>&1; then
-    local devs; devs=$(adb devices 2>/dev/null | grep -cE "$(printf '\t')device$" || true)
-    if ((devs > 0)); then ok "adb: $devs device(s) connected"; else warn 'adb: no devices connected'; fi
-  fi
+  mobile_adb_report
   local tdir="$HOME/.local/nuclei-templates"
   if [[ -d "$tdir" && -n "$(find "$tdir" -maxdepth 0 -mtime +14 2>/dev/null)" ]]; then warn 'nuclei templates >14 days old (ait update)'; fi
   if command -v frida >/dev/null 2>&1 && command -v adb >/dev/null 2>&1; then
     local hv dv
     hv=$(frida --version 2>/dev/null || true)
-    dv=$(adb shell frida-server --version 2>/dev/null | tr -d '\r' || true)
+    dv=$(adb shell /data/local/tmp/frida-server --version 2>/dev/null | tr -d '\r' || true)
     if [[ -n "$hv" && -n "$dv" && "$hv" != "$dv" ]]; then
       warn "Frida host ($hv) and device server ($dv) versions differ"
     elif [[ -n "$hv" ]]; then ok "Frida host: $hv"; fi
@@ -316,6 +319,8 @@ main() {
     doctor) ait_doctor "$@" ;;
     update) ait_update "$@" ;;
     uninstall) ait_uninstall "$@" ;;
+    frida-server) ait_frida_server "$@" ;;
+    proxy-ca) ait_proxy_ca "$@" ;;
     '' | menu) menu_main ;;
     -h | --help | help) usage ;;
     *) die "Unknown command: $cmd (try: ait --help)" ;;

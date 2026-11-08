@@ -2,19 +2,20 @@
 # Python CLI install method: prefer `uv tool` (fast), fall back to pipx.
 
 pipx_install() {
-  if dryrun; then would "install $1 (uv tool / pipx)"; return 0; fi
+  local spec=$1 name=${1%%==*}
+  if dryrun; then would "install $spec (uv tool / pipx)"; return 0; fi
 
   if command -v uv >/dev/null 2>&1; then
-    if uv tool list 2>/dev/null | awk '{print $1}' | grep -Fqx "$1"; then
-      ok "$1 already installed; skipping"; return 0
+    if uv tool list 2>/dev/null | awk '{print $1}' | grep -Fqx "$name"; then
+      ok "$name already installed; skipping"; return 0
     fi
-    uv tool install "$1" || record_failure "$1" 'uv tool install failed'
+    uv tool install "$spec" || record_failure "$name" 'uv tool install failed'
     return 0
   fi
 
-  command -v pipx >/dev/null || { record_failure "$1" 'neither uv nor pipx is available'; return 0; }
-  if pipx list --short 2>/dev/null | awk '{print $1}' | grep -Fqx "$1"; then
-    ok "$1 already installed; skipping"; return 0
+  command -v pipx >/dev/null || { record_failure "$name" 'neither uv nor pipx is available'; return 0; }
+  if pipx list --short 2>/dev/null | awk '{print $1}' | grep -Fqx "$name"; then
+    ok "$name already installed; skipping"; return 0
   fi
   pipx install "$1" || record_failure "$1" 'pipx installation failed'
 }

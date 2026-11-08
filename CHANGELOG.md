@@ -6,6 +6,22 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Phase 4 — Mobile helpers
+
+#### Added
+- `ait frida-server [--device SERIAL]`: reads the host Frida version and device
+  ABI, downloads the matching release, verifies its GitHub API sha256, pushes it
+  to `/data/local/tmp`, starts it (via `su` when available) and confirms with
+  `frida-ps`. `--dry-run` touches neither the network nor the device.
+- `ait proxy-ca --burp|--caido|--mitmproxy [CERT]`: normalises PEM/DER to
+  `<subject_hash_old>.0` and prints user- and system-store steps, including the
+  Android 14+ APEX `conscrypt` cacerts path and a persistence warning.
+- `ait doctor` now reports per-device adb state and, on WSL, usbipd / wireless /
+  `ADB_SERVER_SOCKET` hints plus the port-5037 warning.
+- Pin `frida-tools` 14.13.0 and `objection` 1.12.5 in the catalog; `uv`/`pipx`
+  now honour a catalog `version` (exact PyPI pin) and validate it.
+- Bats tests for ABI mapping, PEM/DER CA naming and the frida-server dry run.
+
 ### Phase 3 — Interactive menu
 
 #### Added

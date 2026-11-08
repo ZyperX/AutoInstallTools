@@ -24,6 +24,8 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 > ./ait list [--profile web] [--category android]
 > ./ait install --profile web --dry-run  # resolve & preview (installs nothing)
 > ./ait install --profile mobile --with ghidra --without amass
+> ./ait frida-server --device emulator-5554   # match host Frida to device ABI
+> ./ait proxy-ca --burp ~/Downloads/cacert.der
 > ./ait doctor | ./ait update | ./ait uninstall
 > ```
 >
@@ -34,9 +36,9 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 > `--dry-run` is fully honest. The original
 > `./install.sh [--minimal|--full|--mobile]` bootstrap still works too.
 >
-> **Coming soon** (see [`PLAN.md`](PLAN.md)): `ait frida-server` / `ait proxy-ca`,
-> the WSL networking toggle, the Windows companion, and the container CI matrix
-> (Ubuntu 22.04/24.04, Debian 12, Kali).
+> **Coming soon** (see [`PLAN.md`](PLAN.md)): the WSL networking toggle, the
+> Windows companion, and the container CI matrix (Ubuntu 22.04/24.04, Debian 12,
+> Kali).
 
 ---
 
@@ -305,7 +307,7 @@ AI coding CLIs plus MCP servers that let an agent drive your tools: Burp (PortSw
 | Command | Does |
 |---|---|
 | `ait install [--profile P] [--with a,b] [--without c] [--dry-run] [--yes]` | Install tools |
-| `ait list [--profile P] [--installed]` | Show the catalog and what's installed |
+| `ait list [--profile P] [--category C] [--installed] [--json]` | Show the catalog and what's installed |
 | `ait doctor [--json]` | Run every tool's health check and print a table |
 | `ait update [--tools a,b]` | Update runtimes, pinned tools, nuclei templates & wordlists |
 | `ait frida-server [--device SERIAL]` | Download the `frida-server` that matches your host Frida version and device ABI, push it and start it |
@@ -353,8 +355,13 @@ WSL2 cannot see USB devices by default. Two options:
 
 1. **usbipd-win (recommended):** on Windows, `winget install usbipd`, then `usbipd bind --busid <id>` and `usbipd attach --wsl --busid <id>`. `adb devices` in WSL now sees the phone.
 2. **adb over network:** enable wireless debugging on the device and `adb connect <ip>:<port>`.
+3. **Reuse Windows' adb server:** with mirrored networking, `export ADB_SERVER_SOCKET=tcp:localhost:5037` lets WSL talk to the adb server already running on Windows.
 
-`ait doctor` detects WSL and tells you which one is configured.
+Only one adb server may own port 5037: run adb in WSL **or** Windows, not both. `ait doctor` reports the connected device state and prints these hints on WSL.
+
+For Frida, `ait frida-server` reads the host `frida --version` and the device ABI (`ro.product.cpu.abi`), downloads the matching `frida-server` release over HTTPS, verifies its sha256 from the GitHub API, pushes it to `/data/local/tmp`, and confirms it with `frida-ps`. Use `--device SERIAL` when more than one device is attached. Catalog pins `frida-tools` 14.13.0 with `objection` 1.12.5 so the Frida 17 host tooling stays compatible.
+
+`ait proxy-ca --burp|--caido|--mitmproxy [CERT]` converts a PEM or DER export to `<subject_hash_old>.0`, the filename Android expects, and prints both the user-store and system-store (including Android 14+ APEX `conscrypt` cacerts) steps.
 
 ---
 

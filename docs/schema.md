@@ -48,5 +48,13 @@ Tags used by profiles: `core`, `runtime`, `recon`, `web`, `api`, `mobile`,
 | `official_archive` | Phase 2 | vendor zip/tar + sha256 (platform-tools, Ghidra, jadx) |
 | `manual` | Phase 2 | print instructions, record as manual |
 
-Pinning fields (`version`, `asset`, `sha256` / `checksum_file`) are added for
-`github_release` and `official_archive` in Phase 2.
+## Pinning
+
+- `github_release` and `official_archive` may set `version` plus a per-platform
+  `asset` map and `sha256` map (or `checksum_file`). A pinned binary entry must
+  have a checksum; CI enforces it.
+- `uv` and `pipx` may set `version` to pin an exact PyPI release (for example
+  the compatible `frida-tools` / `objection` pair). Package pins are verified by
+  uv/pip through the package index, not with a local sha256.
+- Entries without `version` install the latest release and warn that they are
+  unpinned.

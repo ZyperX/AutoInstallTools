@@ -49,12 +49,12 @@ setup() {
   [[ "$medusa_row" == *$'\tOFF\t'* ]]
 }
 
-@test "menu entry 1 maps to the mobile profile" {
+@test "menu entry 4 maps to the mobile profile" {
   run bash -c '
     source "$ROOT/lib/common.sh"; source "$ROOT/lib/catalog.sh"; source "$ROOT/lib/menu.sh"
     bootstrap_yq >/dev/null
     _menu_profile() { printf "PROFILE=%s\n" "$1"; }
-    printf "1\n" | menu_main'
+    printf "4\n" | menu_main'
   [ "$status" -eq 0 ]
   [[ "$output" == *"PROFILE=mobile"* ]]
 }
@@ -69,13 +69,53 @@ setup() {
   [[ "$output" == *"PROFILE=web"* ]]
 }
 
-@test "menu entry 3 installs the all profile" {
+@test "menu entry 3 maps to the api profile" {
+  run bash -c '
+    source "$ROOT/lib/common.sh"; source "$ROOT/lib/catalog.sh"; source "$ROOT/lib/menu.sh"
+    bootstrap_yq >/dev/null
+    _menu_profile() { printf "PROFILE=%s\n" "$1"; }
+    printf "3\n" | menu_main'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROFILE=api"* ]]
+}
+
+@test "menu entry 5 maps to the code profile" {
+  run bash -c '
+    source "$ROOT/lib/common.sh"; source "$ROOT/lib/catalog.sh"; source "$ROOT/lib/menu.sh"
+    bootstrap_yq >/dev/null
+    _menu_profile() { printf "PROFILE=%s\n" "$1"; }
+    printf "5\n" | menu_main'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROFILE=code"* ]]
+}
+
+@test "menu entry 6 maps to the vps profile" {
+  run bash -c '
+    source "$ROOT/lib/common.sh"; source "$ROOT/lib/catalog.sh"; source "$ROOT/lib/menu.sh"
+    bootstrap_yq >/dev/null
+    _menu_profile() { printf "PROFILE=%s\n" "$1"; }
+    printf "6\n" | menu_main'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROFILE=vps"* ]]
+}
+
+@test "menu entry 7 maps to the ai profile" {
+  run bash -c '
+    source "$ROOT/lib/common.sh"; source "$ROOT/lib/catalog.sh"; source "$ROOT/lib/menu.sh"
+    bootstrap_yq >/dev/null
+    _menu_profile() { printf "PROFILE=%s\n" "$1"; }
+    printf "7\n" | menu_main'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROFILE=ai"* ]]
+}
+
+@test "menu entry 8 installs the all profile" {
   run bash -c '
     source "$ROOT/lib/common.sh"; source "$ROOT/lib/catalog.sh"; source "$ROOT/lib/menu.sh"
     bootstrap_yq >/dev/null
     _menu_yesno() { return 0; }
     ait_install() { printf "AIT_INSTALL %s\n" "$*"; }
-    printf "3\n" | menu_main'
+    printf "8\n" | menu_main'
   [ "$status" -eq 0 ]
   [[ "$output" == *"AIT_INSTALL --profile all --yes"* ]]
 }

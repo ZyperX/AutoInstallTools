@@ -26,6 +26,7 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 > ./ait install --profile mobile --with ghidra --without amass
 > ./ait frida-server --device emulator-5554   # match host Frida to device ABI
 > ./ait proxy-ca --burp ~/Downloads/cacert.der
+> ./ait wsl-net status                    # WSL2 only
 > ./ait doctor | ./ait update | ./ait uninstall
 > ```
 >
@@ -36,9 +37,9 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 > `--dry-run` is fully honest. The original
 > `./install.sh [--minimal|--full|--mobile]` bootstrap still works too.
 >
-> **Coming soon** (see [`PLAN.md`](PLAN.md)): the WSL networking toggle, the
-> Windows companion, and the container CI matrix (Ubuntu 22.04/24.04, Debian 12,
-> Kali).
+> **Coming soon** (see [`PLAN.md`](PLAN.md)): the container CI matrix
+> (Ubuntu 22.04/24.04, Debian 12, Kali), macOS/Homebrew beta and the final
+> release polish.
 
 ---
 
@@ -323,8 +324,10 @@ Logs: `~/.local/share/ait/logs/`. Failed tools from the last run: `~/.local/shar
 
 GUI apps installed by AutoInstallTools (Caido desktop, Burp, jadx-gui, Ghidra, scrcpy) open as normal Windows windows through **WSLg**. You need Windows 11, or Windows 10 22H2 with the Microsoft Store version of WSL. Check with `wsl --version` in PowerShell; if `WSLg version` is listed, you're set. Run `wsl --update` if not.
 
+A full WSL setup guide is in [`docs/wsl.md`](docs/wsl.md).
+
 Tips:
-- Launch from the WSL terminal (`caido &`, `jadx-gui &`, `ghidraRun &`). Windows Start-menu shortcuts are created automatically for apps that ship a `.desktop` file.
+- Launch from the WSL terminal (`caido &`, `jadx-gui &`, `ghidraRun &`). `ait install` writes `.desktop` launchers for installed GUI tools to `~/.local/share/applications`, so they also appear in the Windows Start menu.
 - A proxy listening in WSL (e.g. `127.0.0.1:8080`) is reachable from your Windows browser at `localhost:8080` thanks to WSL localhost forwarding.
 - For Caido, a lighter option is `caido-cli` in WSL and the Caido UI in your Windows browser — no WSLg needed.
 - If fonts look blurry on a HiDPI screen, set `GDK_SCALE=2` (GTK apps) or `-Dsun.java2d.uiScale=2` (Java apps like Burp, jadx-gui, Ghidra). `ait doctor` reports whether WSLg is available.
@@ -338,7 +341,14 @@ ait wsl-net status      # show current and configured mode
 ait wsl-net toggle      # switch between mirrored and NAT
 ```
 
-It's also in the main menu on WSL as **WSL networking: Mirrored [ON/OFF]**. AutoInstallTools backs up your `.wslconfig`, changes only the `networkingMode` setting, and tells you to run `wsl --shutdown` from PowerShell to apply it.
+It's also in the main menu on WSL as **WSL networking: Mirrored [ON/OFF]**. AutoInstallTools backs up your `.wslconfig`, changes only the `networkingMode` setting (CRLF-safe, preserving comments and other keys), compares the configured mode with the live one, reports "restart pending", and tells you to run `wsl --shutdown` from PowerShell to apply it. See [`docs/wsl.md`](docs/wsl.md).
+
+| Command | Does |
+|---|---|
+| `ait wsl-net status` | Configured mode, live mode and restart-pending state |
+| `ait wsl-net mirrored` / `nat` | Write that mode under `[wsl2]` |
+| `ait wsl-net toggle` | Flip between mirrored and NAT |
+| `ait wsl-net … --dry-run` | Show the `.wslconfig` diff only |
 
 ### Windows-side GUI tools
 
@@ -347,7 +357,14 @@ For daily-driver GUI tools (Burp, Caido), native Windows is smoother than WSLg. 
 ```powershell
 .\windows\ait-windows.ps1                       # pick tools to install via winget
 .\windows\ait-windows.ps1 -WslNetwork Mirrored  # same networking toggle from Windows
+.\windows\ait-windows.ps1 -WslNetwork Nat -SkipTools
 ```
+
+The checklist covers Burp Suite Community/Professional, jadx, Temurin JDK 21,
+scrcpy and Android platform-tools via winget. Caido, Ghidra and rust_ASC are
+downloaded from their official release channels because they are not in winget
+at the time of writing. `-WslNetwork` uses the same backup and CRLF-safe edit
+rules as `ait wsl-net`. The script is linted with PSScriptAnalyzer in CI.
 
 ## Mobile testing on WSL2
 

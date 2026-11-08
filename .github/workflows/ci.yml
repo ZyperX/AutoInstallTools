@@ -20,6 +20,19 @@ jobs:
       - name: Catalog, resolver, checksum, manifest & dry-run
         run: make test
 
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+      - name: Lint the Windows companion
+        shell: pwsh
+        run: Invoke-ScriptAnalyzer -Path windows -Recurse -Severity Error,Warning -EnableExit
+
   integration:
     runs-on: ubuntu-latest
     container: ubuntu:24.04

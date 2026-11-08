@@ -6,6 +6,27 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Phase 5 — WSL & Windows
+
+#### Added
+- `ait wsl-net status|mirrored|nat|toggle`: WSL2-only `networkingMode` editor
+  that backs up `.wslconfig`, touches only `[wsl2]`, preserves comments/other
+  keys and CRLF, compares configured vs live mode and reports restart-pending.
+  `--dry-run` prints the diff and changes nothing.
+- Main-menu WSL entry now shows `WSL networking: Mirrored [ON|OFF]` with a
+  restart-pending hint.
+- `.desktop` launchers for installed GUI tools (`~/.local/share/applications`),
+  which WSLg exposes in the Windows Start menu; removed again on uninstall.
+- Richer `ait doctor` WSL checks (WSLg + `DISPLAY`/`WAYLAND_DISPLAY`, wsl-net
+  configured mode).
+- `windows/ait-windows.ps1`: Out-GridView/numbered checklist for winget tools
+  plus Caido/Ghidra/rust_ASC downloads, and `-WslNetwork Mirrored|Nat` with the
+  same backup/CRLF rules. PSScriptAnalyzer job added to CI.
+- `docs/wsl.md` covering WSLg, mirrored networking, adb/USB, Frida, proxy CA
+  and the Windows companion.
+- Bats fixtures for `.wslconfig`: missing file, no `[wsl2]`, existing key, other
+  keys, CRLF, dry-run, toggle and restart-pending status.
+
 ### Phase 4 — Mobile helpers
 
 #### Added

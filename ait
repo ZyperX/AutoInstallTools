@@ -18,6 +18,10 @@ done
 source "$ROOT/lib/menu.sh"
 # shellcheck source=lib/mobile.sh
 source "$ROOT/lib/mobile.sh"
+# shellcheck source=lib/wslnet.sh
+source "$ROOT/lib/wslnet.sh"
+# shellcheck source=lib/desktop.sh
+source "$ROOT/lib/desktop.sh"
 
 usage() {
   cat <<'EOF'
@@ -33,6 +37,7 @@ Commands:
   uninstall  Remove AutoInstallTools-managed files
   frida-server  Push and start a matching frida-server on the device
   proxy-ca      Prepare a proxy CA as Android's <subject_hash_old>.0
+  wsl-net       Show or change WSL networking mode (WSL2 only)
 
 Install/list options:
   --profile NAME     one of: minimal web api mobile code vps all ai
@@ -158,6 +163,7 @@ ait_install_names() {
     catalog_tool_exists "$name" || { warn "$name: not in catalog; skipping"; record_failure "$name" 'not in catalog'; continue; }
     install_tool "$name" || record_failure "$name" 'installer error'
   done
+  desktop_launchers_refresh
   if ((${NO_SHELL:-0} == 0)); then configure_shell; fi
   report_failures
   # Release eagerly: the interactive menu installs more than once in one process.
@@ -187,6 +193,7 @@ _uninstall_one() {
     esac
   done
   manifest_remove_row "$tool"
+  desktop_launcher_remove "$tool"
   ok "Removed $tool"
 }
 
@@ -224,6 +231,7 @@ ait_uninstall() {
     for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
       [[ -f "$rc" ]] && sed -i '/# >>> AIT >>>/,/# <<< AIT <<</d' "$rc"
     done
+    rm -f -- "$AIT_DESKTOP_DIR"/ait-*.desktop 2>/dev/null || true
   fi
 }
 
@@ -265,7 +273,17 @@ ait_doctor() {
   case ":$PATH:" in *":$HOME/go/bin:"*) ok "PATH has $HOME/go/bin" ;; *) warn "$HOME/go/bin not on PATH" ;; esac
   if is_wsl; then
     ok 'WSL detected'
-    if [[ -d /mnt/wslg ]]; then ok 'WSLg present (GUI apps supported)'; else warn 'WSLg not detected'; fi
+    if [[ -d /mnt/wslg ]]; then
+      if [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; then
+        ok 'WSLg present and DISPLAY/WAYLAND_DISPLAY are set'
+      else
+        warn 'WSLg present but DISPLAY/WAYLAND_DISPLAY are empty; reopen the shell'
+      fi
+    else
+      warn 'WSLg not detected (GUI apps need Windows 11 or Win10 22H2 + Store WSL)'
+    fi
+    local wmode; wmode=$(wsl_net_read_mode); wmode=${wmode:-nat}
+    ok "wsl-net: configured $wmode (ait wsl-net status)"
   fi
   mobile_adb_report
   local tdir="$HOME/.local/nuclei-templates"
@@ -321,6 +339,7 @@ main() {
     uninstall) ait_uninstall "$@" ;;
     frida-server) ait_frida_server "$@" ;;
     proxy-ca) ait_proxy_ca "$@" ;;
+    wsl-net) wsl_net_cli "$@" ;;
     '' | menu) menu_main ;;
     -h | --help | help) usage ;;
     *) die "Unknown command: $cmd (try: ait --help)" ;;

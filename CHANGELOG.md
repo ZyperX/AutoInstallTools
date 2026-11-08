@@ -6,6 +6,23 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Phase 7 — Release polish
+
+#### Added
+- `scripts/gen-readme.sh`: generates the README tool catalog from
+  `catalog/tools.yaml` between `<!-- catalog:start -->` / `<!-- catalog:end -->`
+  markers (`--write`/`--check`); `make test` fails when the tables are stale.
+- `scripts/check-links.sh`: validates local Markdown links in the README and
+  docs; wired into `make links` and CI.
+- `docs/adding-tools.md`: inclusion criteria, entry fields, platform mappings
+  and the pinning workflow; linked from the README and CONTRIBUTING.
+- `docs/demo.tape` (vhs source) and a generated `docs/demo.gif` near the top of
+  the README.
+
+#### Changed
+- README "Tool catalog" section is now generated per category (tool, purpose,
+  install method, and profiles), replacing the hand-maintained tables.
+
 ### Release-readiness hardening
 
 #### Fixed

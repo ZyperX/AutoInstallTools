@@ -51,9 +51,10 @@ begin_failure_report() {
 
 record_failure() {
   local tool=$1 detail=${2:-installation failed}
-  [[ -n ${FAILURES_FILE:-} ]] || return 0
-  if ! grep -Fqx "$tool" "$FAILURES_FILE" 2>/dev/null; then
-    printf '%s\n' "$tool" >> "$FAILURES_FILE"
+  if [[ -n ${FAILURES_FILE:-} ]]; then
+    if ! grep -Fqx "$tool" "$FAILURES_FILE" 2>/dev/null; then
+      printf '%s\n' "$tool" >> "$FAILURES_FILE"
+    fi
   fi
   warn "$tool: $detail (continuing)"
 }
@@ -69,6 +70,7 @@ report_failures() {
   retry="$(paste -sd, - < "$FAILURES_FILE")"
   warn "Review the error output above, fix prerequisites, then retry with:"
   printf '    ./ait install --profile %s --with %s --yes\n' "${PROFILE:-web}" "$retry" >&2
+  return 1
 }
 
 require_linux() {
@@ -77,14 +79,44 @@ require_linux() {
 }
 
 is_wsl() { grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null; }
+is_macos() { [[ "$(uname -s)" == Darwin ]]; }
 
-# Platform names used by the catalog's `platforms` filter.
+# Platform names used by the catalog's `platforms` filter. AIT_PLATFORM lets
+# tests (and cross-platform dry runs) pretend to be another platform.
 detect_platform() {
+  if [[ -n ${AIT_PLATFORM:-} ]]; then printf '%s\n' "$AIT_PLATFORM"; return 0; fi
   case "$(uname -s)" in
     Linux) if is_wsl; then echo wsl; else echo linux; fi ;;
     Darwin) echo macos ;;
     *) echo unknown ;;
   esac
+}
+
+# sha256_of <file>: portable between Linux (sha256sum) and macOS (shasum).
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{ print $1 }'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{ print $1 }'
+  else
+    die 'sha256sum or shasum is required to verify downloads'
+  fi
+}
+
+# sed_inplace <expr> <file>: BSD sed has no `-i` without a backup suffix.
+sed_inplace() {
+  local expr=$1 file=$2 tmp
+  tmp=$(mktemp) || return 1
+  sed "$expr" "$file" > "$tmp" && mv -- "$tmp" "$file"
+}
+
+# Bash 5 is required (mapfile, associative arrays, ${x,,}); macOS ships 3.2.
+require_bash5() {
+  if ((BASH_VERSINFO[0] < 5)); then
+    err "Bash 5+ is required (running $BASH_VERSION)."
+    printf '  macOS: brew install bash, then use /opt/homebrew/bin/bash\n' >&2
+    exit 1
+  fi
 }
 
 # Platform key for per-arch pinning maps (asset / sha256).
@@ -99,10 +131,21 @@ plat_key() {
 }
 
 acquire_lock() {
-  exec 9>"$STATE_DIR/install.lock"
-  flock -n 9 || die 'Another bootstrap process is running.'
+  mkdir -p "$STATE_DIR"
+  if command -v flock >/dev/null 2>&1; then
+    exec 9>"$STATE_DIR/install.lock"
+    flock -n 9 || die 'Another bootstrap process is running.'
+  else
+    # macOS has no flock; an atomic mkdir is a portable equivalent.
+    LOCK_DIR="$STATE_DIR/install.lock.d"
+    mkdir "$LOCK_DIR" 2>/dev/null || die 'Another bootstrap process is running.'
+  fi
 }
-release_lock() { flock -u 9 || true; }
+release_lock() {
+  if command -v flock >/dev/null 2>&1; then flock -u 9 || true
+  else rmdir "${LOCK_DIR:-}" 2>/dev/null || true
+  fi
+}
 
 confirm_or_exit() {
   [[ -t 0 && ${CI:-} != true ]] || return 0
@@ -136,6 +179,7 @@ configure_shell() {
 export PATH="$BIN_DIR:\$HOME/.local/go/bin:\$HOME/go/bin:\$HOME/.cargo/bin:\$PATH"
 export GOTOOLCHAIN=auto
 [ -f "$snippet" ] && . "$snippet"
+[ -d "$BOOTSTRAP_HOME/opt/jdk-21" ] && export JAVA_HOME="$BOOTSTRAP_HOME/opt/jdk-21"
 # <<< AIT <<<
 EOF
   ok "Added AIT shell block to $rc"

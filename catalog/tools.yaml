@@ -187,8 +187,10 @@ tools:
     desc: JDK 21 with Maven and Gradle
     category: runtime
     tags: [runtime]
-    method: apt
-    apt: [openjdk-21-jdk, maven, gradle]
+    method: runtime
+    runtime: jdk
+    apt_deps: [maven, gradle]
+    brew_cask: [temurin@21]
     bin: java
     check: java -version
   - name: go
@@ -1046,9 +1048,11 @@ tools:
     tags: [mobile]
     opt_in: true
     method: official_archive
-    url: https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip
+    version: 15859902
+    url: https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
+    sha256: 4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583
     bin: sdkmanager
-    notes: Large; Linux/amd64 only. Use sdkmanager to install emulator images.
+    notes: Large; Linux/amd64 only. SHA-256 is published on developer.android.com/studio. Use sdkmanager to install emulator images.
   # ================= iOS (host side) =================
   - name: libimobiledevice
     desc: Talk to iOS devices from Linux

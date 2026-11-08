@@ -56,7 +56,7 @@ install_go_toolchain() (
   local tmp; tmp=$(mktemp -d); trap 'rm -rf -- "$tmp"' EXIT
   retry curl -fL --retry 3 -o "$tmp/go.tgz" "https://go.dev/dl/$file" || {
     record_failure 'go' 'Go tarball download failed'; return 0; }
-  echo "$sha  $tmp/go.tgz" | sha256sum -c - >/dev/null 2>&1 || {
+  [[ "$(sha256_of "$tmp/go.tgz")" == "$sha" ]] || {
     record_failure 'go' 'Go tarball checksum verification failed'; return 0; }
 
   rm -rf -- "$HOME/.local/go"

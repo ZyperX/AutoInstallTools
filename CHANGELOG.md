@@ -6,6 +6,31 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Release-readiness hardening
+
+#### Fixed
+- Binary release installers now require a pinned SHA-256/checksum and reject
+  missing, malformed, unavailable, or mismatched verification data.
+- Failed tool installs now produce a non-zero command result after all requested
+  tools have been attempted, so CI can report real failures.
+- Catalog TSV rows preserve empty platform and Homebrew fields. This fixes
+  profile resolution, menu selection, and WSL GUI launcher discovery.
+- `ait install`, `ait update`, and `ait uninstall --dry-run` no longer create
+  persistent user state; added CLI-level dry-run coverage.
+- Apt refreshes its package index once per install and retries failed batches
+  package by package.
+- Temurin JDK 21 now installs in user space with the API-provided SHA-256,
+  including on Debian 12 and Ubuntu 22.04 where `openjdk-21-jdk` is absent.
+- Mirrored WSL networking now refuses Windows builds below 22621; the Windows
+  companion applies the same minimum and keeps Ghidra versions side by side.
+
+#### Added
+- CI install matrix for web/mobile on Ubuntu 22.04/24.04, Debian 12, and Kali;
+  install failures are no longer swallowed.
+- Weekly catalog pin update workflow, contribution/security/troubleshooting
+  docs, and explicit per-architecture checksum schema checks.
+- Apt method tests, checksum fail-closed tests, and CLI dry-run tests.
+
 ### Phase 5 — WSL & Windows
 
 #### Added

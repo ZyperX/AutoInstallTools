@@ -1,0 +1,22 @@
+name: Tool request
+description: Suggest a tool for the curated catalog
+title: "tool: "
+labels: [tool-request]
+body:
+  - type: input
+    id: upstream
+    attributes:
+      label: Official project or package URL
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: Distinct use case
+      description: Explain what it adds beyond tools already in the catalog.
+    validations:
+      required: true
+  - type: input
+    id: platforms
+    attributes:
+      label: Supported platforms and install source

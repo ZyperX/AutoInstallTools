@@ -166,7 +166,7 @@ AI CLIs + MCP servers (Burp, Caido, Ghidra, Frida) with config snippets but no k
 ---
 
 ## 5. Definition of done (v1.0)
-- `./ait install --profile full --yes` succeeds on a fresh Ubuntu 24.04 container with zero failures (excluding GUI/device-only checks).
+- `./ait install --profile all --yes` succeeds on a fresh Ubuntu 24.04 container with zero failures (excluding GUI/device-only checks).
 - `--dry-run` provably changes nothing (test).
 - Every release binary is checksum-verified.
 - `ait doctor` green after install; `ait uninstall` leaves no managed files behind.

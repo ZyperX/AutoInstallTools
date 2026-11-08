@@ -1,0 +1,33 @@
+name: Check upstream pins
+
+on:
+  schedule:
+    - cron: '23 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinning dependencies
+        run: sudo apt-get update && sudo apt-get install -y curl jq
+      - name: Refresh release pins
+        run: ./scripts/pin.sh --all
+      - name: Propose pin updates
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/upstream-pins
+          delete-branch: true
+          commit-message: 'chore(catalog): refresh upstream release pins'
+          title: 'chore(catalog): refresh upstream release pins'
+          body: |
+            Automated weekly refresh of catalog release versions and checksums.
+
+            Review asset selection and run the catalog validation and CI checks
+            before merging.
+          labels: dependencies

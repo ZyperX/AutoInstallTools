@@ -6,19 +6,30 @@ SCRIPTS := install.sh update.sh doctor.sh uninstall.sh \
            $(wildcard lib/*.sh) $(wildcard lib/methods/*.sh) $(wildcard modules/*.sh) \
            $(wildcard scripts/*.sh) $(wildcard tests/*.sh)
 
-.PHONY: help lint test
+.PHONY: help lint test integration
 
 help:
 	@echo "make lint  - shellcheck every script"
 	@echo "make test  - lint, validate the catalog, resolver + dry-run tests"
+	@echo "make integration - resolve web/mobile profiles in a clean Ubuntu container"
 
 lint:
-	@# SC1090/SC1091 are 'cannot follow source' notices, not bug checks; the
-	@# dynamic module loader and runtime paths make them unavoidable here.
-	shellcheck -x -e SC1090,SC1091 ait $(SCRIPTS)
+	shellcheck -x ait $(SCRIPTS)
 
 test: lint
-	@if command -v bats >/dev/null 2>&1; then bats tests/*.bats; \
-	else echo "bats not found; running shell tests directly"; \
-	     bash tests/validate-catalog.sh && bash tests/resolver.sh; fi
-	bash tests/dry-run.sh
+	@set -Eeuo pipefail; AIT_TEST_TMP=$$(mktemp -d); trap 'rm -rf -- "$$AIT_TEST_TMP"' EXIT; \
+	  export BOOTSTRAP_HOME="$$AIT_TEST_TMP" YQ="$$AIT_TEST_TMP/bin/yq"; \
+	  if [[ -x "$$HOME/.local/share/ait/bin/yq" ]]; then export YQ="$$HOME/.local/share/ait/bin/yq"; \
+	  elif command -v yq >/dev/null 2>&1 && yq --version 2>/dev/null | grep -qi mikefarah; then export YQ="$$(command -v yq)"; fi; \
+	  ./ait list --json >/dev/null; \
+	  if command -v bats >/dev/null 2>&1; then bats tests/*.bats; \
+	  else echo "bats not found; running shell tests directly"; \
+	       bash tests/validate-catalog.sh && bash tests/resolver.sh; fi; \
+	  bash tests/dry-run.sh
+
+# Container smoke check for the real entrypoint and yq bootstrap. Keep the
+# checkout read-only: dry-run must not alter repository files.
+integration:
+	@command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
+	docker run --rm -v "$(CURDIR):/ait:ro" ubuntu:24.04 bash -lc \
+	  'apt-get update -qq && apt-get install -y -qq bash curl ca-certificates sudo && /ait/ait install --profile web --dry-run --yes --no-shell && /ait/ait install --profile mobile --dry-run --yes --no-shell'

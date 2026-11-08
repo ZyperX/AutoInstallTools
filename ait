@@ -6,7 +6,14 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=lib/common.sh
 source "$ROOT/lib/common.sh"
-for _lib in apt golang cargo node npm pipx github awscli verify manifest catalog dispatch; do
+require_bash5
+# shellcheck source=lib/platform.sh
+source "$ROOT/lib/platform.sh"
+# shellcheck source=lib/homebrew.sh
+source "$ROOT/lib/homebrew.sh"
+# shellcheck source=lib/tuning.sh
+source "$ROOT/lib/tuning.sh"
+for _lib in apt golang cargo node java npm pipx github awscli verify manifest catalog dispatch; do
   # shellcheck disable=SC1090
   source "$ROOT/lib/$_lib.sh"
 done
@@ -131,7 +138,8 @@ ait_list() {
 ait_install() {
   parse_common_args "$@"
   [[ -n "$PROFILE" ]] || die 'install needs --profile (see: ait list --profile ...)'
-  require_linux
+  require_supported
+  if is_macos && ! dryrun; then require_brew; fi
   bootstrap_yq
   catalog_profile_exists "$PROFILE" || die "Unknown profile: $PROFILE"
 
@@ -156,6 +164,18 @@ ait_install_names() {
   local label=$1; shift
   [[ $# -gt 0 ]] || { warn 'No tools selected.'; return 0; }
   PROFILE=$label; export PROFILE
+  if dryrun; then
+    local selected
+    for selected in "$@"; do
+      [[ -n "$selected" ]] || continue
+      catalog_tool_exists "$selected" || { record_failure "$selected" 'not in catalog; skipping'; continue; }
+      install_tool "$selected" || record_failure "$selected" 'installer error'
+    done
+    [[ "$PROFILE" == vps ]] && vps_tune
+    desktop_launchers_refresh
+    if ((${NO_SHELL:-0} == 0)); then configure_shell; fi
+    return 0
+  fi
   init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
   local name
   for name in "$@"; do
@@ -163,11 +183,14 @@ ait_install_names() {
     catalog_tool_exists "$name" || { warn "$name: not in catalog; skipping"; record_failure "$name" 'not in catalog'; continue; }
     install_tool "$name" || record_failure "$name" 'installer error'
   done
+  if [[ "$PROFILE" == vps ]]; then vps_tune; fi
   desktop_launchers_refresh
   if ((${NO_SHELL:-0} == 0)); then configure_shell; fi
-  report_failures
+  local status=0
+  report_failures || status=$?
   # Release eagerly: the interactive menu installs more than once in one process.
   release_lock
+  return "$status"
 }
 
 # Remove one manifest tool by its recorded method + paths.
@@ -175,6 +198,14 @@ _uninstall_one() {
   local tool=$1 apt_ok=$2 method paths p
   method=$(manifest_field "$tool" 2); paths=$(manifest_field "$tool" 4)
   IFS=',' read -ra _pp <<< "$paths"
+  if dryrun; then
+    local planned
+    for planned in "${_pp[@]}"; do
+      [[ -n "$planned" && "$planned" != - ]] && would "remove $tool payload $planned"
+    done
+    desktop_launcher_remove "$tool"
+    return 0
+  fi
   for p in "${_pp[@]}"; do
     case "$p" in
       pipx:*) pipx_uninstall "${p#pipx:}" ;;
@@ -182,14 +213,19 @@ _uninstall_one() {
       npm:*)  command -v npm >/dev/null && { npm rm -g "${p#npm:}" || true; } ;;
       cargo:*) command -v cargo >/dev/null && { cargo uninstall "${p#cargo:}" 2>/dev/null || true; } ;;
       runtime:*) warn "$tool: leaving runtime '${p#runtime:}' in place" ;;
+      brew:*)
+        local f formula; for formula in $(tr ';' ' ' <<< "${p#brew:}"); do brew_uninstall --formula "$formula"; done ;;
+      cask:*)
+        local c; for c in $(tr ';' ' ' <<< "${p#cask:}"); do brew_uninstall --cask "$c"; done ;;
       apt:*)
-        local pk=${p#apt:}; pk=${pk//,/ }
+        local pk=${p#apt:}; pk=${pk//;/ }
         if ((apt_ok)); then
           # shellcheck disable=SC2086  # intentional word-split: multiple packages
           run sudo apt-get remove -y $pk || true
         else warn "$tool: apt packages left in place (use --apt): $pk"; fi ;;
       '' | '-') : ;;
-      *) run rm -rf -- "$p" ;;
+      /*) run rm -rf -- "$p" ;;
+      *) warn "refusing to remove unexpected manifest path: $p" ;;
     esac
   done
   manifest_remove_row "$tool"
@@ -209,7 +245,7 @@ ait_uninstall() {
     -h | --help) usage; exit 0 ;;
     *) die "Unknown option: $1" ;;
   esac; done
-  manifest_init
+  if ! dryrun; then manifest_init; fi
   local list
   if ((all)); then list=$(manifest_tools)
   elif [[ -n "$tools" ]]; then list=$(tr ',' '\n' <<< "$tools")
@@ -313,10 +349,23 @@ ait_update() {
     -h | --help) usage; exit 0 ;;
     *) die "Unknown option: $1" ;;
   esac; done
-  require_linux; bootstrap_yq; init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
+  require_supported
+  if is_macos; then require_brew; fi
+  bootstrap_yq
   export FORCE_INSTALL=1
   local t list
   if [[ -n "$tools" ]]; then list=$(tr ',' '\n' <<< "$tools"); else list=$(manifest_tools); fi
+  if dryrun; then
+    while IFS= read -r t; do
+      [[ -z "$t" ]] && continue
+      catalog_tool_exists "$t" || { record_failure "$t" 'not in catalog; skipping'; continue; }
+      log "Would update $t"; install_tool "$t"
+    done <<< "$list"
+    command -v pdtm >/dev/null && would 'run pdtm -ua'
+    command -v nuclei >/dev/null && would 'run nuclei -update-templates'
+    return 0
+  fi
+  init_paths; manifest_init; acquire_lock; trap release_lock EXIT; begin_failure_report
   while IFS= read -r t; do
     [[ -z "$t" ]] && continue
     catalog_tool_exists "$t" || { warn "$t: not in catalog; skipping"; continue; }
@@ -324,8 +373,10 @@ ait_update() {
   done <<< "$list"
   command -v pdtm >/dev/null && { pdtm -ua || true; }
   command -v nuclei >/dev/null && { nuclei -update-templates || true; }
-  report_failures
+  local status=0
+  report_failures || status=$?
   release_lock
+  return "$status"
 }
 
 main() {

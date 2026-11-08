@@ -16,9 +16,7 @@ install_github_release() (
   if dryrun; then would "install $name from $repo (${version:-latest})"; return 0; fi
 
   if [[ -z "$version" ]]; then
-    warn "$name: unpinned (no version in catalog); installing latest"
-    github_install_latest "$repo" "$bin" "$dest"
-    manifest_add "$name" github_release latest "$dest"
+    record_failure "$name" 'catalog release must pin a version and verified checksum'
     return 0
   fi
 
@@ -26,6 +24,10 @@ install_github_release() (
   sha=$(catalog_tool_field "$name" "sha256.$key")
   cfile=$(catalog_tool_field "$name" checksum_file)
   [[ -n "$asset" ]] || { record_failure "$name" "no pinned asset for $key"; return 0; }
+  if [[ -z "$sha" && -z "$cfile" ]]; then
+    record_failure "$name" "no pinned SHA-256/checksum_file for $key; refusing unverified release"
+    return 0
+  fi
 
   local tmp; tmp=$(mktemp -d); trap 'rm -rf -- "$tmp"' EXIT
   local url="https://github.com/$repo/releases/download/$version/$asset"
@@ -41,7 +43,8 @@ install_github_release() (
     verify_sha256 "$tmp/asset" "$exp" || { record_failure "$name" 'sha256 verification failed'; return 0; }
     ok "$name: checksum verified"
   else
-    warn "$name: pinned version but no sha256/checksum_file; installing unverified"
+    record_failure "$name" 'checksum verification was skipped; refusing unverified release'
+    return 0
   fi
 
   gh_install_from_file "$tmp/asset" "$asset" "$bin" "$dest" || return 0

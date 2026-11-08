@@ -91,6 +91,25 @@ $Tools = @(
     }
 )
 
+function Assert-GitHubAssetDigest {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Asset,
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $digest = [string]$Asset.digest
+    if ($digest -notmatch '^sha256:([0-9a-fA-F]{64})$') {
+        throw "GitHub did not provide a SHA-256 digest for $($Asset.name); refusing an unverified download."
+    }
+    $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    if ($actual -ine $Matches[1]) {
+        throw "SHA-256 mismatch for $($Asset.name)."
+    }
+}
+
 function Install-WingetPackage {
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -141,13 +160,11 @@ function Install-Ghidra {
         throw 'No Ghidra zip asset found in the latest release.'
     }
 
-    $destination = Join-Path $env:LOCALAPPDATA 'Programs\Ghidra'
+    $destination = Join-Path $env:LOCALAPPDATA "Programs\Ghidra\$($release.tag_name)"
     if ($PSCmdlet.ShouldProcess($destination, 'download and expand Ghidra')) {
         $zip = Join-Path $env:TEMP $asset.name
         Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zip -UseBasicParsing
-        if (Test-Path -Path $destination) {
-            Remove-Item -Path $destination -Recurse -Force
-        }
+        Assert-GitHubAssetDigest -Asset $asset -Path $zip
         New-Item -ItemType Directory -Path $destination -Force | Out-Null
         Expand-Archive -Path $zip -DestinationPath $destination -Force
         Remove-Item -Path $zip -Force
@@ -185,11 +202,14 @@ function Install-RustAsc {
     if (-not $asset) {
         throw 'No rust_ASC Windows x86_64 asset found.'
     }
-    $directory = Join-Path $env:LOCALAPPDATA 'Programs\rust_ASC'
+    $directory = Join-Path $env:LOCALAPPDATA "Programs\rust_ASC\$($release.tag_name)"
     $destination = Join-Path $directory 'rust_ASC.exe'
     if ($PSCmdlet.ShouldProcess($destination, 'download rust_ASC')) {
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $destination -UseBasicParsing
+        $download = Join-Path $env:TEMP $asset.name
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $download -UseBasicParsing
+        Assert-GitHubAssetDigest -Asset $asset -Path $download
+        Move-Item -LiteralPath $download -Destination $destination -Force
         New-DesktopShortcut -Name 'rust_ASC' -Target $destination
     }
 }
@@ -249,6 +269,9 @@ function Set-WslNetworkingMode {
     )
 
     $value = $Mode.ToLowerInvariant()
+    if ($Mode -eq 'Mirrored' -and [Environment]::OSVersion.Version.Build -lt 22621) {
+        throw "Windows build $([Environment]::OSVersion.Version.Build) is too old for mirrored networking; build 22621 or newer is required."
+    }
     $config = Join-Path $env:USERPROFILE '.wslconfig'
     $raw = ''
     $lines = @()

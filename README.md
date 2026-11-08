@@ -2,12 +2,12 @@
 
 # AutoInstallTools
 
-**One command to set up a complete, modern web + mobile AppSec workstation.**
+**A catalog-driven installer for web and mobile AppSec workstations on Linux and WSL2.**
 
 Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove.
 
 [![CI](https://github.com/ZyperX/AutoInstallTools/actions/workflows/ci.yml/badge.svg)](https://github.com/ZyperX/AutoInstallTools/actions/workflows/ci.yml)
-![Platforms](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Debian%20%7C%20Kali%20%7C%20WSL2%20%7C%20macOS-blue)
+![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2-blue)
 ![Shell](https://img.shields.io/badge/shell-bash%205%2B-green)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
@@ -15,9 +15,12 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 
 ---
 
-> ### 🚧 Project status — pre-v1, under active construction
+> ### Project status — pre-v1
 >
-> Most of the workstation flow works **today**:
+> The Linux/WSL workstation flow is implemented. Local ShellCheck/Bats tests and
+> the Ubuntu Docker integration smoke check have passed. The project is still
+> pre-v1; review the catalog and run `ait install --profile ... --dry-run`
+> before installing tools on a workstation.
 >
 > ```bash
 > ./ait                                  # interactive menu
@@ -33,13 +36,14 @@ Curated tools only. Pinned and checksum-verified. Safe to re-run. Easy to remove
 > The catalog ([`catalog/tools.yaml`](catalog/tools.yaml)) is the source of truth,
 > parsed with a pinned, checksum-verified `yq`; profiles (`minimal`, `web`, `api`,
 > `mobile`, `code`, `vps`, `all`, `ai`) resolve by tag with `--with`/`--without`.
-> Release binaries are pinned per architecture and checksum-verified, and
-> `--dry-run` is fully honest. The original
+> Pinned release binaries are verified before extraction, and `--dry-run` does
+> not install tools or persist installer state. The original
 > `./install.sh [--minimal|--full|--mobile]` bootstrap still works too.
 >
-> **Coming soon** (see [`PLAN.md`](PLAN.md)): the container CI matrix
-> (Ubuntu 22.04/24.04, Debian 12, Kali), macOS/Homebrew beta and the final
-> release polish.
+> The CLI, catalog, interactive menu, mobile helpers, WSL networking support,
+> and optional Windows companion are implemented. Ubuntu on Linux/WSL2 is the
+> primary use case. Other distributions and macOS support are not part of the
+> project's current validation target. The project has not made a v1 release.
 
 ---
 
@@ -52,8 +56,8 @@ What makes it different from the hundred other "install-all-the-tools" scripts:
 - **Curated, not hoarded.** Every tool earns its place. Abandoned or superseded tools are left out or marked as such (e.g. `tplmap` → `SSTImap`, `hakrawler` → `katana`, `cvemap` → `vulnx`).
 - **Declarative catalog.** All tools live in [`catalog/tools.yaml`](catalog/tools.yaml): one entry per tool with its install method, version, profile and a health check. Adding a tool is a 6-line PR.
 - **Verified installs.** Release binaries are pinned and SHA-256 checked. `ait update` bumps pins deliberately, not silently.
-- **User-space first.** Everything lands in `~/.local`, `~/go/bin` and `~/.local/share/ait`. `sudo` is only used for apt packages and is always announced first.
-- **Idempotent and recoverable.** Re-run as often as you like. Failures never stop the run; you get a summary and a one-line retry command.
+- **User-space first.** Most tools land in `~/.local`, `~/go/bin` and `~/.local/share/ait`. `sudo` is used only where system packages or repository configuration require it.
+- **Idempotent and recoverable.** Re-run as often as you like. A failed tool does not stop the remaining installs; failures are summarized with a retry command and the overall command returns non-zero.
 - **Mobile is a first-class citizen.** Correct `platform-tools`, `jadx`, `apktool`, Frida 17-compatible tooling, an `ait frida-server` helper that pushes the right build to your device, and honest notes for iOS from Linux.
 
 > ⚠️ **Authorized use only.** These tools are for systems you own or have written permission to test. You are responsible for how you use them.
@@ -62,11 +66,34 @@ What makes it different from the hundred other "install-all-the-tools" scripts:
 
 ## Quick start
 
+### Requirements
+
+- Ubuntu 22.04 or newer, either on Linux or under WSL2. Other Debian-family
+  systems may work, but are outside the primary validation target.
+- Bash 5+, `curl`, and `sudo` for system packages. `git`, `jq`, and `ca-certificates`
+  are installed as needed by the selected tools.
+- An internet connection to the configured package repositories and upstream
+  release hosts.
+- For Android device work: an Android device or emulator, Android debugging
+  enabled, and `adb` connectivity. WSL users may need USB forwarding; see
+  [Mobile testing on WSL2](#mobile-testing-on-wsl2).
+
+AutoInstallTools places user-managed tools in `~/.local` and its state in
+`~/.local/share/ait`. `sudo` is used for system packages. Some catalog entries
+are opt-in, require a separate license choice, or need manual setup; inspect
+the dry-run and tool notes before proceeding.
+
 ```bash
 git clone https://github.com/ZyperX/AutoInstallTools.git
 cd AutoInstallTools
-./ait                        # opens the interactive menu
+./ait install --profile web --dry-run  # review the planned changes first
+./ait install --profile web            # install the web testing profile
+./ait                                   # open the interactive menu
 ```
+
+The installer may ask for your password when a selected tool requires an apt
+package. It attempts all selected tools, then reports failures and a retry
+command. A failed install makes the command return non-zero.
 
 ### Interactive menu
 
@@ -104,13 +131,13 @@ Choosing **Mobile** or **Web** asks how you want to install:
 └─────────────────────────────────────────────────────────┘
 ```
 
-**All tools** installs everything (after one confirmation). **Update existing** updates only the tools AutoInstallTools has already installed, plus nuclei templates and wordlists.
+**All tools** installs everything (after one confirmation). **Update existing** updates tools recorded in the AutoInstallTools manifest and refreshes Nuclei templates when Nuclei is available.
 
 What each menu covers:
 
 | Menu choice | Catalog tags included |
 |---|---|
-| Mobile AppSec | `mobile` (Android + iOS host tooling, Frida stack, decompilers, MobSF) |
+| Mobile AppSec | `mobile` (Android + iOS host tooling, Frida stack, decompilers; MobSF is opt-in) |
 | Web AppSec | `web`, `api`, `code` (proxies, recon, fuzzing, injection, API/GraphQL/JWT, JS & secrets, SAST/SCA) |
 | All tools | everything except opt-in extras |
 
@@ -121,13 +148,15 @@ The menu works over SSH and in WSL. If `whiptail` isn't available it falls back 
 ```bash
 ./ait install --profile web           # web AppSec workstation
 ./ait install --profile mobile        # Android + iOS host tooling
-./ait install --profile all          # web + mobile + api + code review
+./ait install --profile all            # web + mobile + API + code review
 ./ait install --profile vps           # headless recon box (no GUI apps)
 ./ait install --profile web --with ghidra,codeql --without amass
 ./ait install --profile all --dry-run   # show exactly what would happen
+./ait install --profile mobile --yes --no-shell # non-interactive, skip shell edits
 ```
 
-Then:
+After installation, open a new shell (or reload your current one) and check
+the managed tools:
 
 ```bash
 exec $SHELL          # reload PATH
@@ -140,14 +169,14 @@ ait doctor           # verify everything works
 
 | Platform | Status | Notes |
 |---|---|---|
-| Ubuntu 22.04 / 24.04 | ✅ Primary | Tested in CI |
-| Debian 12 | ✅ Supported | Tested in CI |
-| Kali Linux (rolling) | ✅ Supported | Prefers Kali's own packages where they are current |
-| WSL2 (Ubuntu) | ✅ Supported | GUI apps via WSLg; USB devices via `usbipd-win` (see [Mobile on WSL](#mobile-testing-on-wsl2)) |
-| macOS 14+ (Apple Silicon/Intel) | 🧪 Beta | Uses Homebrew; required for most iOS tooling |
-| Arch / Fedora | ❌ Not yet | PRs welcome |
+| Ubuntu 22.04+ | Primary | Linux and WSL2 are the main target |
+| WSL2 with Ubuntu | Supported | WSLg GUI support and WSL networking helpers are documented below |
+| Debian 12 / Kali Linux | Best effort | Platform-specific package choices are present; not part of the current validation target |
+| macOS | Out of scope | Some Homebrew code exists, but macOS is not a supported target |
+| Arch / Fedora | Not supported | Package and installer mappings are not provided |
 
-Architectures: `x86_64` and `arm64` (`aarch64`).
+Release catalog entries commonly support `x86_64` and `arm64` (`aarch64`).
+Availability depends on each upstream project's published assets.
 
 ---
 
@@ -157,14 +186,14 @@ Profiles are bundles of catalog tags. Combine them, or fine-tune with `--with` /
 
 | Profile | For | Includes |
 |---|---|---|
-| `minimal` | Any box | Core CLI utilities, runtimes (Go, Python via `uv`, Node LTS, JDK 21) |
+| `minimal` | Base workstation | Core CLI utilities and language runtimes |
 | `web` | Web & API testing | minimal + proxies, recon, discovery, fuzzing, injection, auth, secrets, wordlists |
 | `api` | API-focused engagements | minimal + API/GraphQL/JWT tooling and discovery |
-| `mobile` | Android & iOS | minimal + Android SDK tools, decompilers, Frida stack, Flutter/RN tooling, iOS host tools |
+| `mobile` | Android & iOS host tooling | minimal + Android SDK tools, decompilers, Frida stack, and iOS host tools |
 | `code` | Source review / SAST / SCA | minimal + Opengrep/Semgrep, secrets scanners, SBOM & dependency scanners |
 | `vps` | Headless recon server | minimal + recon + nuclei, no GUI apps, tuned for long runs in `tmux` |
-| `ai` | Agent-assisted testing | AI coding CLIs + MCP servers for Burp, Caido, Ghidra and Frida (opt-in) |
-| `all` | Everything above except `ai` | web + api + mobile + code |
+| `ai` | Agent-assisted development | Opt-in AI coding CLIs; MCP server setup is not automated |
+| `all` | Broad workstation | core, runtimes, recon, web, API, code, mobile, cloud, and wordlists; excludes opt-in tools |
 
 Run `ait list --profile web` to see the exact contents of any profile.
 
@@ -295,9 +324,11 @@ Every tool below is defined in `catalog/tools.yaml`. **Method** is how it is ins
 
 `jq`, `yq`, `gron`, `ripgrep`, `fd`, `bat`, `eza`, `fzf`, `zoxide`, `tmux`, `btop`, `httpie`, `anew`, `unfurl`, `qsreplace`, `uro`.
 
-### AI & MCP (profile `ai`, opt-in)
+### AI tooling (profile `ai`, opt-in)
 
-AI coding CLIs plus MCP servers that let an agent drive your tools: Burp (PortSwigger MCP extension), Caido, Ghidra (GhidraMCP) and Frida. Nothing here stores API keys — you configure credentials yourself.
+Optional AI coding CLIs are available through the `ai` profile. MCP server
+installation and credentials are not managed by this project; configure those
+separately if you use them. AutoInstallTools does not store API keys.
 
 **Deliberately not included:** tools that are archived, unmaintained for years, or fully superseded (e.g. `tplmap`, `LinkFinder`, `Sublist3r`, `dirb`, `exa`). See [`docs/not-included.md`](docs/not-included.md) for the reasoning; open an issue if you disagree.
 
@@ -307,14 +338,25 @@ AI coding CLIs plus MCP servers that let an agent drive your tools: Burp (PortSw
 
 | Command | Does |
 |---|---|
-| `ait install [--profile P] [--with a,b] [--without c] [--dry-run] [--yes]` | Install tools |
+| `ait install --profile P [--with a,b] [--without c] [--dry-run] [--yes] [--no-shell]` | Install a profile; add/remove tools or tags; preview or skip prompts/shell setup |
 | `ait list [--profile P] [--category C] [--installed] [--json]` | Show the catalog and what's installed |
 | `ait doctor [--json]` | Run every tool's health check and print a table |
-| `ait update [--tools a,b]` | Update runtimes, pinned tools, nuclei templates & wordlists |
+| `ait update [--tools a,b] [--dry-run]` | Update managed tools; also update nuclei templates when available |
 | `ait frida-server [--device SERIAL]` | Download the `frida-server` that matches your host Frida version and device ABI, push it and start it |
-| `ait proxy-ca --burp|--caido|--mitmproxy` | Export the proxy CA in the format Android needs (`<hash>.0`) and show install steps |
-| `ait wsl-net status\|mirrored\|nat\|toggle` | WSL only: share one IP/localhost between Windows and WSL |
-| `ait uninstall [--tools a,b]` | Remove only what AutoInstallTools installed |
+| `ait proxy-ca --burp\|--caido\|--mitmproxy [CERT]` | Convert a proxy CA to Android's `<hash>.0` format and show installation steps |
+| `ait wsl-net status\|mirrored\|nat\|toggle` | WSL2 only: inspect or change the configured networking mode |
+| `ait uninstall --tools a,b [--apt] [--dry-run]` | Remove selected manifest-managed tools; apt packages need `--apt` |
+| `ait uninstall --all [--apt] [--dry-run]` | Remove all manifest-managed tools |
+
+`--with` and `--without` accept comma-separated tool names or catalog tags.
+`--yes` suppresses interactive confirmation; use it only when you have reviewed
+the selected tools. `--dry-run` previews supported install/update/uninstall
+actions without performing the requested changes.
+
+The manifest is stored at `~/.local/share/ait/state/manifest.tsv`. Only items
+recorded there are considered by uninstall. Apt packages are left installed
+unless `--apt` is provided. Tool-specific data and dependencies may require
+separate cleanup.
 
 Logs: `~/.local/share/ait/logs/`. Failed tools from the last run: `~/.local/share/ait/state/failed-tools`.
 
@@ -324,7 +366,7 @@ Logs: `~/.local/share/ait/logs/`. Failed tools from the last run: `~/.local/shar
 
 GUI apps installed by AutoInstallTools (Caido desktop, Burp, jadx-gui, Ghidra, scrcpy) open as normal Windows windows through **WSLg**. You need Windows 11, or Windows 10 22H2 with the Microsoft Store version of WSL. Check with `wsl --version` in PowerShell; if `WSLg version` is listed, you're set. Run `wsl --update` if not.
 
-A full WSL setup guide is in [`docs/wsl.md`](docs/wsl.md).
+A full WSL setup guide is in [`docs/wsl-mobile.md`](docs/wsl-mobile.md).
 
 Tips:
 - Launch from the WSL terminal (`caido &`, `jadx-gui &`, `ghidraRun &`). `ait install` writes `.desktop` launchers for installed GUI tools to `~/.local/share/applications`, so they also appear in the Windows Start menu.
@@ -341,7 +383,7 @@ ait wsl-net status      # show current and configured mode
 ait wsl-net toggle      # switch between mirrored and NAT
 ```
 
-It's also in the main menu on WSL as **WSL networking: Mirrored [ON/OFF]**. AutoInstallTools backs up your `.wslconfig`, changes only the `networkingMode` setting (CRLF-safe, preserving comments and other keys), compares the configured mode with the live one, reports "restart pending", and tells you to run `wsl --shutdown` from PowerShell to apply it. See [`docs/wsl.md`](docs/wsl.md).
+It's also in the main menu on WSL as **WSL networking: Mirrored [ON/OFF]**. AutoInstallTools backs up your `.wslconfig`, changes only the `networkingMode` setting (CRLF-safe, preserving comments and other keys), compares the configured mode with the live one, reports "restart pending", and tells you to run `wsl --shutdown` from PowerShell to apply it. See [`docs/wsl-mobile.md`](docs/wsl-mobile.md).
 
 | Command | Does |
 |---|---|
@@ -404,27 +446,38 @@ Pinned versions live in `catalog/tools.yaml`. A scheduled CI job opens a PR when
 Add an entry to `catalog/tools.yaml`:
 
 ```yaml
-- name: x8
-  description: Hidden parameter discovery
-  tags: [web, api]
-  method: github_release
-  repo: Sh1Yo/x8
-  version: v4.3.0
-  asset: { linux_amd64: "x86_64-linux-x8.gz", linux_arm64: "aarch64-linux-x8.gz" }
-  check: x8 --version
+tools:
+  - name: x8
+    desc: Hidden parameter discovery
+    category: discovery
+    tags: [web, api]
+    method: github_release
+    repo: Sh1Yo/x8
+    version: v4.3.0
+    asset: { linux_amd64: "x86_64-linux-x8.gz", linux_arm64: "aarch64-linux-x8.gz" }
+    sha256: { linux_amd64: "<verified-sha256>", linux_arm64: "<verified-sha256>" }
+    check: x8 --version
 ```
 
-Then run `./ait install --with x8` and `make test`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the inclusion criteria and supported install methods (`apt`, `brew`, `github_release`, `go`, `uv`, `npm`, `cargo`, `git_venv`, `docker`, `official_archive`, `manual`).
+Then preview it with `./ait install --profile web --with x8 --dry-run`, and run
+`make lint`, `make test`, and `make integration` for the Linux/WSL path. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for inclusion criteria and supported
+install methods (`apt`, `brew`, `github_release`, `go`, `uv`, `npm`, `cargo`,
+`git_venv`, `docker`, `official_archive`, `manual`).
 
 ---
 
 ## Safety & supply chain
 
 - Release downloads are pinned and verified against SHA-256 checksums from the catalog or the upstream checksum file.
-- No `curl | bash` from third parties. NodeSource/Go/Docker repos are added with signed keys.
+- Release archives are rejected when required checksum data is missing or does
+  not match. Catalog entries that install from package indexes or source control
+  follow those upstream trust models instead.
+- Review the catalog entry and dry-run before installing a large profile. Some
+  tools can download templates, wordlists, containers, or additional runtimes.
 - No credentials, targets or scan configs are ever stored.
 - `sudo` is used only for system packages; everything else runs as your user.
-- `--dry-run` prints every command without executing anything.
+- `--dry-run` does not install selected tools or persist installer state.
 
 ---
 
@@ -432,7 +485,8 @@ Then run `./ait install --with x8` and `make test`. See [CONTRIBUTING.md](CONTRI
 
 **Will it break my existing setup?** Tools you already have are detected and skipped. Shell changes go in a single, clearly marked block in your rc file and are removed by `ait uninstall`.
 
-**Why not just use Kali?** Kali is great. Many testers work on Ubuntu, WSL or macOS though, and Kali's packages for some fast-moving tools lag behind upstream. On Kali, this repo uses Kali packages where they're current.
+**Why not just use Kali?** Kali is a good option. AutoInstallTools targets an
+Ubuntu/WSL workflow and uses upstream releases for many fast-moving tools.
 
 **Why isn't X installed?** Check `docs/not-included.md`, then open an issue with the tool, why it's better than what's here, and its maintenance status.
 
@@ -440,7 +494,10 @@ Then run `./ait install --with x8` and `make test`. See [CONTRIBUTING.md](CONTRI
 
 ## Contributing
 
-PRs welcome — new tools, platform support, fixes. Please read [CONTRIBUTING.md](CONTRIBUTING.md). All PRs must pass `shellcheck`, `bats` tests and the CI install matrix.
+PRs welcome — new tools, Linux/WSL fixes, and documentation. Please read
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Before submitting, run `make lint`,
+`make test`, and `make integration` where Docker is available. The GitHub
+workflow may also run checks outside the Linux/WSL target scope.
 
 ## License
 

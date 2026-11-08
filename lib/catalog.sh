@@ -11,11 +11,16 @@ PROFILES_YAML="$CATALOG_DIR/profiles.yaml"
 YQ_VERSION='v4.54.2'
 YQ_SHA256_amd64='44c7759059b4910827a0059a2757b22001e59360cdecdb2ef8dedc4b6c7e9f32'
 YQ_SHA256_arm64='bd44211dcd29a5f0eb701d4b7eb5ccd0cfff3bd3966cb4f7f9bd5b13701d997e'
-YQ=''
+YQ_SHA256_darwin_amd64='651e61c6a13085d6a88d30c54fa74e894d4bb18461b5e8522d3dd00a327fb3bd'
+YQ_SHA256_darwin_arm64='34923a7ca09a32a4257702ced5f7f2e5e83b16968cce3866f5ff830e4ce1cdd4'
+YQ="${YQ:-}"
 
 # Ensure $YQ points at a mikefarah yq v4. Prefer an existing one, else download
 # the pinned binary (verified) into the AIT bin dir.
 bootstrap_yq() {
+  if [[ -n "$YQ" && -x "$YQ" ]] && "$YQ" --version 2>/dev/null | grep -qi mikefarah; then
+    return 0
+  fi
   local ait_bin="$BOOTSTRAP_HOME/bin"
   if [[ -x "$ait_bin/yq" ]] && "$ait_bin/yq" --version 2>/dev/null | grep -qi mikefarah; then
     YQ="$ait_bin/yq"; return 0
@@ -25,24 +30,41 @@ bootstrap_yq() {
   fi
   command -v curl >/dev/null || die 'curl is required to bootstrap yq'
 
-  local arch sha
+  if dryrun; then
+    YQ_TMP_DIR=$(mktemp -d)
+    ait_bin=$YQ_TMP_DIR
+    trap '_cleanup_yq_tmp' EXIT
+  fi
+
+  local arch sha os=linux
   case "$(uname -m)" in
-    x86_64) arch=amd64; sha="$YQ_SHA256_amd64" ;;
-    aarch64 | arm64) arch=arm64; sha="$YQ_SHA256_arm64" ;;
+    x86_64) arch=amd64 ;;
+    aarch64 | arm64) arch=arm64 ;;
     *) die "unsupported CPU architecture for yq: $(uname -m)" ;;
   esac
+  if is_macos; then
+    os=darwin
+    if [[ "$arch" == amd64 ]]; then sha="$YQ_SHA256_darwin_amd64"; else sha="$YQ_SHA256_darwin_arm64"; fi
+  else
+    if [[ "$arch" == amd64 ]]; then sha="$YQ_SHA256_amd64"; else sha="$YQ_SHA256_arm64"; fi
+  fi
 
   local tmp; tmp=$(mktemp -d)
   log "Bootstrapping yq $YQ_VERSION"
   retry curl -fL --retry 3 -o "$tmp/yq" \
-    "https://github.com/mikefarah/yq/releases/download/$YQ_VERSION/yq_linux_$arch" \
+    "https://github.com/mikefarah/yq/releases/download/$YQ_VERSION/yq_${os}_$arch" \
     || { rm -rf -- "$tmp"; die 'could not download yq'; }
-  if ! echo "$sha  $tmp/yq" | sha256sum -c - >/dev/null 2>&1; then
+  if [[ "$(sha256_of "$tmp/yq")" != "$sha" ]]; then
     rm -rf -- "$tmp"; die 'yq checksum verification failed'
   fi
-  install -D -m 0755 "$tmp/yq" "$ait_bin/yq"
+  mkdir -p "$ait_bin"
+  install -m 0755 "$tmp/yq" "$ait_bin/yq"
   rm -rf -- "$tmp"
   YQ="$ait_bin/yq"
+}
+
+_cleanup_yq_tmp() {
+  if [[ -n ${YQ_TMP_DIR:-} ]]; then rm -rf -- "$YQ_TMP_DIR"; fi
 }
 
 # q <yq-expression> <file> : run the bootstrapped yq.
@@ -95,9 +117,12 @@ _tags_intersect() {
 # All tags used by the catalog (for validating --with/--without).
 catalog_tags() { q '[.tools[].tags[]] | unique | .[]' "$TOOLS_YAML"; }
 
-# Resolver rows: name tags opt_in category gui platforms priority.
+# Resolver rows: name tags opt_in category gui platforms priority method deps
+# bin desc brew cask darwin.
 # Priority 0 = runtimes, 1 = tools that need apt deps, 2 = everything else,
 # so a deterministic install order puts prerequisites first.
+# `platforms` is empty unless the catalog sets it explicitly; `brew`/`cask`
+# are comma lists and `darwin` is 1 when a pinned darwin asset/url exists.
 catalog_resolve_tsv() {
   q '.tools[] | [
     .name,
@@ -105,19 +130,42 @@ catalog_resolve_tsv() {
     (.opt_in // false),
     .category,
     (.gui // false),
-    ((.platforms // ["linux", "wsl"]) | join(",")),
+    ((.platforms // []) | if length == 0 then "-" else join(",") end),
     (if .category == "runtime" then 0
      elif ((.apt_deps // []) | length) > 0 then 1
      else 2 end),
     .method,
     (if ((.apt_deps // []) | length) > 0 then "1" else "0" end),
     (.bin // .name),
-    .desc
+    .desc,
+    ((.brew // []) | if type == "!!seq" then (if length == 0 then "-" else join(",") end) else . end),
+    ((.brew_cask // []) | if type == "!!seq" then (if length == 0 then "-" else join(",") end) else . end),
+    ([.asset.darwin_amd64, .asset.darwin_arm64, .url.darwin_amd64, .url.darwin_arm64]
+      | map(select(. != null)) | length > 0)
   ] | @tsv' "$TOOLS_YAML"
 }
 
 _platform_allowed() {
   local have=",$1,"; [[ "$have" == *",$2,"* ]]
+}
+
+# Methods whose installer works unchanged on macOS (user-space toolchains).
+_macos_portable_method() {
+  case "$1" in
+    uv | pipx | npm | go | cargo | git_venv | git | wget_mirror | docker | brew) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# _platform_selectable <platforms-csv> <method> <brew-csv> <darwin> <platform>
+# An explicit `platforms` list always wins. Without one, macOS only accepts
+# tools with a Homebrew mapping, a pinned darwin asset, or a portable method.
+_platform_selectable() {
+  local platforms=$1 method=$2 brew=$3 darwin=$4 platform=$5
+  if [[ -n "$platforms" ]]; then _platform_allowed "$platforms" "$platform"; return; fi
+  [[ "$platform" == macos ]] || return 0
+  [[ -n "$brew" || "$darwin" == 1 ]] && return 0
+  _macos_portable_method "$method"
 }
 
 # Offer close matches for a typo'd tool/tag name.
@@ -149,15 +197,17 @@ resolve_tools() {
   tsv=$(catalog_resolve_tsv)
 
   declare -A sel=() prio_of=() cat_of=()
-  local name tagcsv optin category gui platforms prio item
+  local name tagcsv optin category gui platforms prio item method brew darwin
   # Read every column: with fewer variables, the last one swallows the rest of
-  # the line (including tabs), which corrupts the sort key.
-  while IFS=$'\t' read -r name tagcsv optin category gui platforms prio _ _ _ _; do
+  # the line (including tabs), which corrupts the brew/darwin columns.
+  while IFS=$'\t' read -r name tagcsv optin category gui platforms prio method _ _ _ brew _ darwin; do
     [[ -z "$name" ]] && continue
+    [[ "$platforms" == "-" ]] && platforms=''
+    [[ "$brew" == "-" ]] && brew=''
     prio_of[$name]=$prio; cat_of[$name]=$category
     [[ "$optin" == true ]] && continue
     _tags_intersect "$tagcsv" "$tags" || continue
-    _platform_allowed "$platforms" "$platform" || continue
+    _platform_selectable "$platforms" "$method" "$brew" "$darwin" "$platform" || continue
     [[ "$profile" == vps && "$gui" == true ]] && continue
     sel[$name]=1
   done <<< "$tsv"
@@ -170,10 +220,12 @@ resolve_tools() {
     if grep -qx -- "$item" <<<"$(cut -f1 <<<"$tsv")"; then
       sel[$item]=1
     else
-      while IFS=$'\t' read -r name tagcsv _ _ _ platforms _ _ _ _ _; do
+      while IFS=$'\t' read -r name tagcsv _ _ _ platforms _ method _ _ _ brew _ darwin; do
         [[ -z "$name" ]] && continue
+        [[ "$platforms" == "-" ]] && platforms=''
+        [[ "$brew" == "-" ]] && brew=''
         _tags_intersect "$tagcsv" "$item" || continue
-        _platform_allowed "$platforms" "$platform" || continue
+        _platform_selectable "$platforms" "$method" "$brew" "$darwin" "$platform" || continue
         sel[$name]=1
       done <<< "$tsv"
     fi

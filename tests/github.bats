@@ -30,3 +30,25 @@ setup() {
     test -x "$BIN_DIR/tool"'
   [ "$status" -eq 0 ]
 }
+
+@test "release verifier rejects a release with no published SHA-256" {
+  run bash -c '
+    source "$ROOT/lib/common.sh"; source "$ROOT/lib/github.sh"
+    export FAILURES_FILE="$BATS_TEST_TMPDIR/failures"; : > "$FAILURES_FILE"
+    file=$(mktemp); printf payload > "$file"
+    json="{\"assets\":[{\"name\":\"tool.tar.gz\",\"browser_download_url\":\"https://example.invalid/tool.tar.gz\"}]}"
+    if _gh_verify_checksum "$json" tool.tar.gz "$file" tool; then exit 1; fi
+    grep -Fxq tool "$FAILURES_FILE"'
+  [ "$status" -eq 0 ]
+}
+
+@test "release verifier checks GitHub asset digest" {
+  run bash -c '
+    source "$ROOT/lib/common.sh"; source "$ROOT/lib/github.sh"
+    export FAILURES_FILE="$BATS_TEST_TMPDIR/failures"; : > "$FAILURES_FILE"
+    file=$(mktemp); printf payload > "$file"
+    digest=$(sha256_of "$file")
+    json="{\"assets\":[{\"name\":\"tool\",\"digest\":\"sha256:$digest\"}]}"
+    _gh_verify_checksum "$json" tool "$file" tool'
+  [ "$status" -eq 0 ]
+}

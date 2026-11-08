@@ -18,12 +18,33 @@ _self_recording() {
   case "$1" in github_release | git_venv | docker | official_archive | manual | uv | pipx) return 0 ;; *) return 1 ;; esac
 }
 
+# Record an apt install as one manifest path (packages joined with `;`, so the
+# comma-separated path list never splits a package name).
+_record_apt() {
+  local name=$1; shift
+  dryrun && return 0
+  local IFS=';'
+  manifest_add "$name" apt "-" "apt:$*"
+}
+
+# Record a Homebrew install (macOS) and its formula/cask lists.
+_record_brew() {
+  local name=$1 formulas=$2 casks=$3 paths=''
+  dryrun && return 0
+  [[ -n "$formulas" ]] && paths="brew:${formulas//,/\;}"
+  if [[ -n "$casks" ]]; then
+    [[ -n "$paths" ]] && paths+=","
+    paths+="cask:${casks//,/\;}"
+  fi
+  manifest_add "$name" brew "-" "$paths"
+}
+
 # Record a generic method's install in the manifest, if it looks installed.
 _record_generic() {
   local name=$1 method=$2 bin paths
   bin=$(catalog_tool_bin "$name")
   case "$method" in
-    apt)   paths="apt:$(catalog_tool_list "$name" apt | paste -sd, -)" ;;
+    apt)   paths="apt:$(catalog_tool_list "$name" apt | paste -sd';' -)" ;;
     go)    paths="$BIN_DIR/$bin,$HOME/go/bin/$bin" ;;
     pipx)  paths="pipx:$(catalog_tool_field "$name" pypi)" ;;
     npm)   paths="npm:$(catalog_tool_field "$name" npm)" ;;
@@ -36,13 +57,46 @@ _record_generic() {
 }
 
 install_tool() {
-  local name=$1 method bin deps=()
+  local name=$1 method bin platform deps=() formulas=() casks=() use_apt=0
   method=$(catalog_tool_field "$name" method)
   bin=$(catalog_tool_bin "$name")
+  platform=$(detect_platform)
 
-  # System prerequisites declared by any method (naabu needs libpcap-dev, etc.).
-  mapfile -t deps < <(catalog_tool_list "$name" apt_deps)
-  ((${#deps[@]})) && apt_install "${deps[@]}"
+  # macOS beta: an explicit Homebrew mapping is authoritative; portable
+  # toolchains (go/uv/pipx/npm/cargo/git_venv) use their normal method.
+  if [[ "$platform" == macos ]]; then
+    mapfile -t formulas < <(catalog_tool_list "$name" brew)
+    mapfile -t casks < <(catalog_tool_list "$name" brew_cask)
+    if ((${#formulas[@]} + ${#casks[@]})); then
+      ((${#formulas[@]})) && brew_install_formulas "${formulas[@]}"
+      ((${#casks[@]})) && brew_install_casks "${casks[@]}"
+      _record_brew "$name" "$(IFS=,; echo "${formulas[*]}")" "$(IFS=,; echo "${casks[*]}")"
+      return 0
+    fi
+    mapfile -t deps < <(catalog_tool_list "$name" brew_deps)
+    ((${#deps[@]})) && brew_install_formulas "${deps[@]}"
+    case "$method" in
+      apt | runtime | github_release | official_archive | manual)
+        record_failure "$name" 'not available on macOS (no Homebrew mapping)'
+        return 0
+        ;;
+    esac
+  else
+    # System prerequisites declared by any method (naabu needs libpcap-dev).
+    mapfile -t deps < <(catalog_tool_list "$name" apt_deps)
+    ((${#deps[@]})) && apt_install "${deps[@]}"
+    # Kali: prefer its package when it is at least the pinned upstream version.
+    if [[ "$method" != apt ]] && _kali_apt_current "$name"; then
+      log "$name: Kali package ${KALI_APT_PKGS[*]} is current; using apt"
+      apt_install "${KALI_APT_PKGS[@]}"
+      _record_apt "$name" "${KALI_APT_PKGS[@]}"
+      use_apt=1
+    fi
+  fi
+
+  if ((use_apt)); then
+    return 0
+  fi
 
   case "$method" in
     apt)
@@ -61,6 +115,7 @@ install_tool() {
         go) install_go_toolchain ;;
         rust) install_rust_toolchain ;;
         node) install_node_lts ;;
+        jdk) install_jdk21 ;;
         uv) install_uv_runtime ;;
         awscli) install_awscli_v2 ;;
         *) record_failure "$name" "unknown runtime" ;;

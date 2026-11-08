@@ -99,11 +99,13 @@ _menu_rows() {
   tags=$(catalog_profile_tags "$profile" | tr '\n' ' ')
   platform=$(detect_platform)
   tsv=$(catalog_resolve_tsv)
-  local name tagcsv optin cat gui platforms _prio _method _deps bin desc status label
-  while IFS=$'\t' read -r name tagcsv optin cat gui platforms _prio _method _deps bin desc; do
+  local name tagcsv optin cat gui platforms _prio _method _deps bin desc _brew _cask _darwin status label
+  while IFS=$'\t' read -r name tagcsv optin cat gui platforms _prio _method _deps bin desc _brew _cask _darwin; do
     [[ -z "$name" ]] && continue
+    [[ "$platforms" == "-" ]] && platforms=''
+    [[ "$_brew" == "-" ]] && _brew=''
     _tags_intersect "$tagcsv" "$tags" || continue
-    _platform_allowed "$platforms" "$platform" || continue
+    _platform_selectable "$platforms" "$_method" "$_brew" "$_darwin" "$platform" || continue
 
     label="[$cat] $name — $desc"
     command -v "$bin" >/dev/null 2>&1 && label+=' (installed)'
@@ -191,10 +193,10 @@ _menu_checklist() {
 # Summarise an explicit list: count and whether sudo is needed.
 _menu_summary() {
   local -a names=("$@")
-  local tsv name tagcsv optin cat gui platforms _prio method deps bin desc
+  local tsv name tagcsv optin cat gui platforms _prio method deps bin desc _brew _cask _darwin
   local sudo=no
   tsv=$(catalog_resolve_tsv)
-  while IFS=$'\t' read -r name tagcsv optin cat gui platforms _ method deps bin desc; do
+  while IFS=$'\t' read -r name tagcsv optin cat gui platforms _ method deps bin desc _brew _cask _darwin; do
     [[ -z "$name" ]] && continue
     local sought=0 n
     for n in "${names[@]}"; do [[ "$n" == "$name" ]] && sought=1; done

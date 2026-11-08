@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible installer or CLI problem
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private targets, or scan output.
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: commit SHA or release tag
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and version
+      placeholder: Ubuntu 24.04 / WSL2 / macOS 14
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps and expected behavior
+      description: Include the command and sanitized output.
+    validations:
+      required: true

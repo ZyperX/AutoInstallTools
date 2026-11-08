@@ -17,13 +17,24 @@ apt_install() {
     return 0
   fi
 
-  if ! sudo apt-get update -y; then
-    record_failure 'apt package index' 'apt-get update failed'
+  if [[ ${APT_UPDATED_RUN:-0} != 1 ]]; then
+    if ! sudo apt-get update -y; then
+      record_failure 'apt package index' 'apt-get update failed'
+      return 0
+    fi
+    APT_UPDATED_RUN=1
+  fi
+
+  if sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"; then
     return 0
   fi
+
+  # Retry individually so an unavailable package does not block the rest.
   for package in "${missing[@]}"; do
-    if ! sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$package"; then
-      record_failure "$package" 'apt installation failed'
+    if ! dpkg-query -W -f='${db:Status-Status}' "$package" 2>/dev/null | grep -qx installed; then
+      if ! sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$package"; then
+        record_failure "$package" 'apt installation failed'
+      fi
     fi
   done
 }

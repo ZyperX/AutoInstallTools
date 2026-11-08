@@ -35,28 +35,50 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
-    container: ubuntu:24.04
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        profile: [mobile, web]
+        include:
+          - { distro: ubuntu-22.04, image: ubuntu:22.04, profile: web }
+          - { distro: ubuntu-22.04, image: ubuntu:22.04, profile: mobile }
+          - { distro: ubuntu-24.04, image: ubuntu:24.04, profile: web }
+          - { distro: ubuntu-24.04, image: ubuntu:24.04, profile: mobile }
+          - { distro: debian-12, image: debian:12, profile: web }
+          - { distro: debian-12, image: debian:12, profile: mobile }
+          - { distro: kali-rolling, image: kalilinux/kali-rolling, profile: web }
+          - { distro: kali-rolling, image: kalilinux/kali-rolling, profile: mobile }
+    container:
+      image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
       - name: Base packages
         run: |
           apt-get update
-          apt-get install -y sudo curl jq git ca-certificates unzip
-      - name: Install profile (device/GUI steps allowed to fail)
+          apt-get install -y sudo curl jq git ca-certificates unzip xz-utils
+      - name: Install profile (device steps are not part of these profiles)
         shell: bash
         run: |
-          set -o pipefail
-          ./ait install --profile ${{ matrix.profile }} --yes 2>&1 | tee install.log || true
-          # Surface any recorded failures as a summary artifact, but don't fail
-          # the job on GUI-only / device-only tools.
-          grep -i 'could not be installed' -A50 install.log > failures.txt || echo "none" > failures.txt
+          set -Eeuo pipefail
+          profile='${{ matrix.profile }}'
+          ./ait install --profile "$profile" --yes --no-shell 2>&1 | tee install.log
+          printf 'distro=%s\nimage=%s\nprofile=%s\n' '${{ matrix.distro }}' '${{ matrix.image }}' "$profile" > install-metadata.txt
+      - name: Capture install summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f install.log ]]; then
+            grep -A100 'The following tools could not be installed:' install.log > failures.txt || echo 'No failure summary emitted.' > failures.txt
+          else
+            echo 'Installer did not start.' > failures.txt
+          fi
       - name: Upload failure summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: install-failures-${{ matrix.profile }}
-          path: failures.txt
+          name: install-${{ matrix.distro }}-${{ matrix.profile }}
+          path: |
+            failures.txt
+            install.log
+            install-metadata.txt
+          if-no-files-found: ignore

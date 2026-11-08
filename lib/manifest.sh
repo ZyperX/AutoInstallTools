@@ -3,6 +3,7 @@
 # Install manifest: records exactly what ait installed so uninstall can remove
 # only those things. One TSV row per tool:
 #   tool <TAB> method <TAB> version <TAB> paths(comma) <TAB> installed_at(iso)
+# Field access uses awk, not `grep -P`: BSD grep on macOS has no PCRE.
 
 manifest_file() { printf '%s\n' "$STATE_DIR/manifest.tsv"; }
 
@@ -14,18 +15,29 @@ manifest_add() {
   mf=$(manifest_file); mkdir -p "$STATE_DIR"
   # Replace any existing row for this tool (idempotent re-install).
   if [[ -f "$mf" ]]; then
-    local tmp; tmp=$(mktemp); grep -vP "^${tool}\t" "$mf" 2>/dev/null > "$tmp" || true; mv "$tmp" "$mf"
+    local tmp; tmp=$(mktemp)
+    awk -F'\t' -v t="$tool" 'BEGIN { OFS = "\t" } $1 != t' "$mf" > "$tmp" || true
+    mv "$tmp" "$mf"
   fi
   printf '%s\t%s\t%s\t%s\t%s\n' "$tool" "$method" "${version:--}" "${paths:--}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$mf"
 }
 
-manifest_has()   { local mf; mf=$(manifest_file); [[ -f "$mf" ]] && grep -qP "^$1\t" "$mf"; }
+manifest_has() {
+  local mf; mf=$(manifest_file)
+  [[ -f "$mf" ]] || return 1
+  awk -F'\t' -v t="$1" '$1 == t { found = 1 } END { exit !found }' "$mf"
+}
 manifest_tools() { local mf; mf=$(manifest_file); if [[ -f "$mf" ]]; then cut -f1 "$mf"; fi; }
-manifest_row()   { local mf; mf=$(manifest_file); [[ -f "$mf" ]] || return 0; { grep -P "^$1\t" "$mf" || true; } | head -n1; }
+manifest_row() {
+  local mf; mf=$(manifest_file); [[ -f "$mf" ]] || return 0
+  awk -F'\t' -v t="$1" '$1 == t { print; exit }' "$mf"
+}
 manifest_field() { # <tool> <1-based col>
   manifest_row "$1" | cut -f"$2"
 }
 manifest_remove_row() {
   local tool=$1 mf tmp; mf=$(manifest_file); [[ -f "$mf" ]] || return 0
-  tmp=$(mktemp); grep -vP "^${tool}\t" "$mf" > "$tmp" 2>/dev/null || true; mv "$tmp" "$mf"
+  tmp=$(mktemp)
+  awk -F'\t' -v t="$tool" 'BEGIN { OFS = "\t" } $1 != t' "$mf" > "$tmp" || true
+  mv "$tmp" "$mf"
 }

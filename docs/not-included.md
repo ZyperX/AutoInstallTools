@@ -25,11 +25,11 @@ Install any of these explicitly with, e.g., `ait install --profile web --with ha
 | `LinkFinder` | unmaintained | `jsluice` / `xnLinkFinder` |
 | `Sublist3r` | unmaintained | `subfinder` |
 | `dirb` / `dirbuster` | superseded | `ffuf` / `feroxbuster` |
-| apt `adb` / `apktool` (as the only source) | years out of date | upstream platform-tools / apktool (Phase 4) |
+| apt `adb` / `apktool` (as the only source) | years out of date | upstream platform-tools / apktool |
 
-## Pending verification (not yet added)
+## Not currently included
 
 | Tool | Why held back |
 |---|---|
-| `caido-cli` | Caido publishes no GitHub release assets; its caido.io download URL needs to be verified before adding an `official_archive` entry. |
-| `massdns` | No apt package and no release binary; needs a from-source build. `puredns` is in the catalog but depends on `massdns` being on `PATH`. |
+| `caido-cli` | The upstream download endpoint and asset mapping are not yet represented as a verified catalog entry. |
+| `massdns` | Requires a maintained source-build path; `puredns` can still use an independently installed resolver. |

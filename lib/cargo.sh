@@ -36,7 +36,7 @@ install_rust_toolchain() (
 
   local expected actual
   expected=$(awk '{print $1}' "$tmp/rustup-init.sha256")
-  actual=$(sha256sum "$tmp/rustup-init" | awk '{print $1}')
+  actual=$(sha256_of "$tmp/rustup-init")
   [[ -n "$expected" && "$expected" == "$actual" ]] || {
     record_failure 'rust' 'rustup-init checksum verification failed'; return 0; }
 

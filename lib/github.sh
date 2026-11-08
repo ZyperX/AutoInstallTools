@@ -4,7 +4,8 @@
 #
 # Picks the right asset for the host architecture, skips packaging/signature/
 # checksum side-files and other OSes, prefers archives over raw binaries, and
-# verifies the download against an upstream checksum when one is published (B5).
+# verifies the download against an upstream digest/checksum. A release without
+# one is rejected rather than installed unverified.
 
 # Release tools refreshed by update.sh.
 # shellcheck disable=SC2034  # consumed by update.sh, which sources this file
@@ -94,38 +95,64 @@ gh_install_from_file() {
   [[ -z "$bin" ]] && bin=$(find "$ex" -type f -size +20k 2>/dev/null | head -n1)
   [[ -n "$bin" ]] || { rm -rf -- "$ex"; record_failure "$binname" 'could not identify executable in asset'; return 1; }
 
-  install -D -m 0755 "$bin" "$dest" || { rm -rf -- "$ex"; record_failure "$binname" 'could not place executable'; return 1; }
+  install -m 0755 "$bin" "$dest" || { rm -rf -- "$ex"; record_failure "$binname" 'could not place executable'; return 1; }
   rm -rf -- "$ex"
   return 0
 }
 
 # _gh_verify_checksum <release-json> <asset-name> <file> <binname>
-# Verifies <file> against an upstream checksum if the release publishes one.
-# Returns non-zero (and records a failure) only on an actual mismatch.
+# Verifies <file> against GitHub's asset digest or a published checksum file.
+# Refuses the release if it cannot establish an expected SHA-256.
 _gh_verify_checksum() {
-  local json=$1 name=$2 file=$3 binname=$4 csum_url expected actual ctmp
+  local json=$1 name=$2 file=$3 binname=$4 csum_url expected actual ctmp digest single=0
+  digest=$(jq -r --arg n "$name" \
+    '[.assets[] | select(.name == $n) | .digest // empty][0] // empty' <<<"$json")
+  if [[ -n "$digest" ]]; then
+    expected=${digest#sha256:}
+    if [[ ! "$expected" =~ ^[[:xdigit:]]{64}$ ]]; then
+      record_failure "$binname" "invalid GitHub SHA-256 digest for $name"
+      return 1
+    fi
+    actual=$(sha256_of "$file")
+    [[ "${expected,,}" == "${actual,,}" ]] || {
+      record_failure "$binname" 'release checksum verification failed'
+      return 1
+    }
+    ok "$binname: checksum verified"
+    return 0
+  fi
   # Take the first match inside jq: piping jq into `head` can SIGPIPE under pipefail.
   csum_url=$(jq -r --arg n "$name" \
     '[.assets[] | select(.name == ($n + ".sha256")) | .browser_download_url][0] // empty' <<<"$json")
+  [[ -n "$csum_url" ]] && single=1
   [[ -z "$csum_url" ]] && csum_url=$(jq -r '
     [.assets[] | select(.name | test("checksum|sha256sum|sha256";"i"))
     | select(.name | test("\\.(txt|sha256|sha256sum)$";"i")) | .browser_download_url][0] // empty' <<<"$json")
 
   if [[ -z "$csum_url" ]]; then
-    warn "$binname: no upstream checksum published; installing unverified"
-    return 0
+    record_failure "$binname" "upstream publishes no SHA-256 for $name; refusing unverified release"
+    return 1
   fi
 
   ctmp=$(mktemp)
   if ! curl -fsSL -o "$ctmp" "$csum_url"; then
-    rm -f -- "$ctmp"; warn "$binname: could not fetch checksum; installing unverified"; return 0
+    rm -f -- "$ctmp"
+    record_failure "$binname" 'could not fetch upstream checksum'
+    return 1
   fi
-  expected=$(awk -v n="$name" 'index($0, n) { print $1; exit }' "$ctmp")
-  [[ -z "$expected" ]] && expected=$(awk 'NF { print $1; exit }' "$ctmp")
+  expected=$(awk -v n="$name" '$2 == n || $2 == ("*" n) { print $1; exit }' "$ctmp")
+  if [[ -z "$expected" && "$single" == 1 ]]; then
+    expected=$(awk 'NF { print $1; exit }' "$ctmp")
+  fi
   rm -f -- "$ctmp"
 
-  actual=$(sha256sum "$file" | awk '{print $1}')
-  if [[ -n "$expected" && "$expected" != "$actual" ]]; then
+  if [[ ! "$expected" =~ ^[[:xdigit:]]{64}$ ]]; then
+    record_failure "$binname" "no valid SHA-256 found in checksum file for $name"
+    return 1
+  fi
+
+  actual=$(sha256_of "$file")
+  if [[ "${expected,,}" != "${actual,,}" ]]; then
     record_failure "$binname" 'release checksum verification failed'
     return 1
   fi

@@ -104,7 +104,7 @@ _frida_download_asset() {
 
   retry curl -fL --retry 3 -o "$dest" "$url" || { err "download failed: $url"; return 1; }
   expected=${digest#sha256:}
-  actual=$(sha256sum "$dest" | awk '{ print $1 }')
+  actual=$(sha256_of "$dest")
   if [[ "$actual" != "$expected" ]]; then
     rm -f -- "$dest"
     err "sha256 mismatch for $asset (expected $expected, got $actual)"

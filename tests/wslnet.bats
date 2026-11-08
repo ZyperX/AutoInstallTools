@@ -89,3 +89,20 @@ _run() { # evaluate a snippet with the shared helpers sourced
   [[ "$output" == *'Live:       nat'* ]]
   [[ "$output" == *'restart pending'* ]]
 }
+
+@test "mirrored mode refuses Windows builds below 22621 without editing config" {
+  printf '[wsl2]\nnetworkingMode=nat\n' > "$WSL_CONFIG"
+  before=$(cat "$WSL_CONFIG")
+  _run 'AIT_WSL2=1 AIT_WSL_BUILD=22620 wsl_net_cli mirrored'
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'too old for mirrored networking'* ]]
+  [ "$(cat "$WSL_CONFIG")" = "$before" ]
+}
+
+@test "mirrored mode accepts Windows build 22621 and dry-run preserves config" {
+  printf '[wsl2]\nnetworkingMode=nat\n' > "$WSL_CONFIG"
+  _run 'AIT_WSL2=1 AIT_WSL_BUILD=22621 wsl_net_cli mirrored --dry-run'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'networkingMode=mirrored'* ]]
+  grep -qxF 'networkingMode=nat' "$WSL_CONFIG"
+}

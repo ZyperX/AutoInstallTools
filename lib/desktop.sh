@@ -49,7 +49,7 @@ desktop_launchers_refresh() {
     return 0
   fi
   local name cat gui bin desc
-  while IFS=$'\t' read -r name _ _ cat gui _ _ _ _ bin desc; do
+  while IFS=$'\t' read -r name _ _ cat gui _ _ _ _ bin desc _ _; do
     [[ -z "$name" || "$gui" != true ]] && continue
     [[ -x "$BIN_DIR/$bin" ]] || continue
     desktop_launcher_write "$name" "$bin" "$desc" "$cat"

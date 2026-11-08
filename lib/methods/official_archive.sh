@@ -2,7 +2,7 @@
 # shellcheck disable=SC2154  # BIN_DIR/BOOTSTRAP_HOME from lib/common.sh
 # official_archive: a vendor zip/tar (or a bare .jar) extracted into
 # ~/.local/share/ait/opt/<name>, with the chosen bin symlinked (or a java -jar
-# wrapper written) into ~/.local/bin. Verifies sha256 when the catalog pins it.
+# wrapper written) into ~/.local/bin. Requires a pinned SHA-256 before install.
 #
 # Catalog keys: repo (+ asset glob) OR url; optional version, sha256 (scalar or
 # per-plat map), checksum_file; bin.
@@ -35,6 +35,12 @@ install_official_archive() (
   if [[ -z "$sha" && -n "$key" ]]; then
     sha=$(catalog_tool_field "$name" "sha256.$key")
   fi
+  local cfile; cfile=$(catalog_tool_field "$name" "checksum_file.$key")
+  [[ -n "$cfile" ]] || cfile=$(catalog_tool_str "$name" checksum_file)
+  if [[ -z "$sha" && -z "$cfile" ]]; then
+    record_failure "$name" 'no pinned SHA-256/checksum_file; refusing unverified archive'
+    return 0
+  fi
 
   # Resolve the download URL.
   if [[ -z "$url" ]]; then
@@ -58,8 +64,6 @@ install_official_archive() (
   local file="$tmp/${url##*/}"
   retry curl -fL --retry 3 -o "$file" "$url" || { record_failure "$name" 'download failed'; return 0; }
 
-  local cfile; cfile=$(catalog_tool_field "$name" "checksum_file.$key")
-  [[ -n "$cfile" ]] || cfile=$(catalog_tool_str "$name" checksum_file)
   if [[ -n "$sha" ]]; then
     verify_sha256 "$file" "$sha" || { record_failure "$name" 'sha256 verification failed'; return 0; }
     ok "$name: checksum verified"
@@ -71,7 +75,8 @@ install_official_archive() (
     verify_sha256 "$file" "$exp" || { record_failure "$name" 'sha256 verification failed'; return 0; }
     ok "$name: checksum verified"
   else
-    warn "$name: no pinned checksum; installing unpinned"
+    record_failure "$name" 'checksum verification was skipped; refusing unverified archive'
+    return 0
   fi
 
   rm -rf -- "$opt"; mkdir -p "$opt"

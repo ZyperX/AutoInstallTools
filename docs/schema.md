@@ -36,17 +36,17 @@ Tags used by profiles: `core`, `runtime`, `recon`, `web`, `api`, `mobile`,
 |---|---|---|
 | `apt` | yes | `apt: [packages]` |
 | `go` | yes | `go: <module>`, optional `apt_deps: [packages]` |
-| `github_release` | yes | `repo: owner/name`, optional `dest:` |
+| `github_release` | yes | `repo: owner/name`, pinned `version`, per-platform `asset` and `sha256` or `checksum_file`, optional `dest:` |
 | `pipx` | yes | `pypi: <name>` |
 | `npm` | yes | `npm: <package>` |
 | `cargo` | yes | `crate: <name>` |
 | `git` | yes | `git: <url>`, `dest:` (clone only) |
 | `wget_mirror` | yes | `url:`, `dest:` |
 | `runtime` | yes | `runtime: go\|rust\|node\|awscli` |
-| `git_venv` | Phase 2 | `git:`, `dest:`, `bin:` (clone + isolated venv + wrapper) |
-| `docker` | Phase 2 | pull image + wrapper script |
-| `official_archive` | Phase 2 | vendor zip/tar + sha256 (platform-tools, Ghidra, jadx) |
-| `manual` | Phase 2 | print instructions, record as manual |
+| `git_venv` | yes | `git:`, `dest:`, `bin:` (clone + isolated venv + wrapper) |
+| `docker` | yes | pull image + wrapper script |
+| `official_archive` | yes | vendor zip/tar + pinned `version` and SHA-256/checksum file |
+| `manual` | yes | print instructions, record as manual |
 
 ## Pinning
 

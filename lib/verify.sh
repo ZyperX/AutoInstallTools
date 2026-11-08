@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# sha256 verification helpers.
+# sha256 verification helpers (Linux and macOS).
 
 # verify_sha256 <file> <expected-hex> : true if the file matches.
 verify_sha256() {
   local file=$1 expected=$2 actual
   [[ -n "$expected" ]] || return 2
-  actual=$(sha256sum "$file" | awk '{print $1}')
+  actual=$(sha256_of "$file")
   [[ "$actual" == "$expected" ]]
 }
 
@@ -14,5 +14,5 @@ verify_sha256() {
 checksum_from_file() {
   local cfile=$1 name=$2
   # index() is a literal match (asset names contain dots/dashes, not regexes).
-  awk -v n="$name" 'index($0, n) { print $1; exit }' "$cfile" 2>/dev/null
+  awk -v n="$name" '$2 == n || $2 == ("*" n) { print $1; exit }' "$cfile" 2>/dev/null
 }

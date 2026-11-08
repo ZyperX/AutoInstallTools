@@ -8,6 +8,25 @@ is_wsl2() {
   grep -qi 'microsoft-standard' /proc/sys/kernel/osrelease 2>/dev/null
 }
 
+wsl_net_windows_build() {
+  if [[ -n ${AIT_WSL_BUILD:-} ]]; then printf '%s\n' "$AIT_WSL_BUILD"; return 0; fi
+  command -v cmd.exe >/dev/null 2>&1 || return 1
+  local ver
+  ver=$(cmd.exe /c ver 2>/dev/null | tr -d '\r') || return 1
+  if [[ "$ver" =~ Version[[:space:]]+10\.0\.([0-9]+) ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+  else
+    return 1
+  fi
+}
+
+wsl_net_require_mirrored_support() {
+  local build
+  build=$(wsl_net_windows_build) || die 'Could not determine the Windows build; mirrored networking requires Windows build 22621 or newer.'
+  [[ "$build" =~ ^[0-9]+$ ]] || die "Invalid Windows build number: $build"
+  ((build >= 22621)) || die "Windows build $build is too old for mirrored networking; Windows 11 22H2 (build 22621) or newer is required."
+}
+
 # wsl_net_require_wsl: hard requirement for the CLI (tests set WSL_CONFIG).
 wsl_net_require_wsl() {
   is_wsl2 && return 0
@@ -68,11 +87,13 @@ wsl_net_menu_label() {
 }
 
 wsl_net_status() {
-  local cfg mode live
+  local cfg mode live build
   cfg=$(wsl_net_config_path)
   mode=$(wsl_net_read_mode); mode=${mode:-nat}
   live=$(wsl_net_live_mode)
+  build=$(wsl_net_windows_build || true); build=${build:-unknown}
   printf 'Config:    %s\n' "$cfg"
+  printf 'Windows build: %s\n' "$build"
   if [[ -f "$cfg" ]]; then
     printf 'Configured: %s\n' "$mode"
   else
@@ -187,6 +208,13 @@ EOF
   esac; done
   [[ -n "$cmd" ]] || { die 'ait wsl-net needs status, mirrored, nat or toggle'; }
   wsl_net_require_wsl
+  case "$cmd" in
+    mirrored) wsl_net_require_mirrored_support ;;
+    toggle)
+      local current; current=$(wsl_net_read_mode); current=${current:-nat}
+      [[ "$current" == mirrored ]] || wsl_net_require_mirrored_support
+      ;;
+  esac
   DRY_RUN=$dry; export DRY_RUN
   case "$cmd" in
     status) wsl_net_status ;;

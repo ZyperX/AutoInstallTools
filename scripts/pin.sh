@@ -99,9 +99,9 @@ pin_one() {
   [[ -n "$repo" ]] || { echo "skip $name (no GitHub repo; pin manually)"; return 0; }
 
   json=$(gh_json "https://api.github.com/repos/$repo/releases/latest") \
-    || { echo "FAIL $name (GitHub API)"; return 0; }
+    || { echo "FAIL $name (GitHub API)"; return 1; }
   tag=$(jq -r '.tag_name' <<<"$json")
-  [[ -n "$tag" && "$tag" != null ]] || { echo "FAIL $name (no tag)"; return 0; }
+  [[ -n "$tag" && "$tag" != null ]] || { echo "FAIL $name (no tag)"; return 1; }
 
   glob=$(catalog_tool_str "$name" asset)
   # A scalar `asset` is a glob; turn it into a per-platform map before writing.
@@ -142,18 +142,21 @@ pin_one() {
   if ((have_asset && have_sum)); then
     N="$name" TAG="$tag" _set '(.tools[] | select(.name == strenv(N))).version = strenv(TAG)'
     echo "pinned $name -> $tag"
+    return 0
   else
     echo "FAIL $name: no per-arch asset/digest or checksum file (left unpinned)"
+    return 1
   fi
 }
 
 main() {
   [[ $# -ge 1 ]] || { echo "usage: pin.sh <tool>|--all" >&2; exit 2; }
   if [[ "$1" == --all ]]; then
-    local n
+    local n failures=0
     while IFS= read -r n; do
-      pin_one "$n"
+      pin_one "$n" || failures=1
     done < <(catalog_tool_names)
+    ((failures == 0)) || return 1
   else
     pin_one "$1"
   fi

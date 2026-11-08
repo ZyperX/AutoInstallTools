@@ -71,14 +71,35 @@ while IFS= read -r p; do
   done < <(catalog_profile_tags "$p")
 done < <(catalog_profiles)
 
-# Binary pins (github_release/official_archive) must also carry a checksum.
+# Binary releases must pin a version and carry a checksum.
 # Package pins (uv/pipx) name an exact PyPI version and are verified by uv/pip.
 while IFS= read -r t; do
   [[ -z "$t" ]] && continue
+  bad "$t: github_release/official_archive requires a pinned version"
+done < <("$YQ" '.tools[] | select((.method == "github_release" or .method == "official_archive") and .version == null) | .name' "$TOOLS_YAML")
+
+while IFS= read -r t; do
+  [[ -z "$t" ]] && continue
   if [[ -z "$(catalog_tool_field "$t" sha256)" && -z "$(catalog_tool_field "$t" checksum_file)" ]]; then
-    bad "$t: pinned (has version) but no sha256/checksum_file"
+    bad "$t: github_release/official_archive requires sha256/checksum_file"
   fi
-done < <("$YQ" '.tools[] | select(.version != null and (.method == "github_release" or .method == "official_archive")) | .name' "$TOOLS_YAML")
+done < <("$YQ" '.tools[] | select(.method == "github_release" or .method == "official_archive") | .name' "$TOOLS_YAML")
+
+# Every platform asset/URL mapping must have a matching digest or checksum.
+while IFS= read -r t; do
+  [[ -z "$t" ]] && continue
+  scalar_sha=$(catalog_tool_str "$t" sha256)
+  scalar_cfile=$(catalog_tool_str "$t" checksum_file)
+  keys=$("$YQ" ".tools[] | select(.name == \"$t\") | [.asset, .url] | map(select(type == \"!!map\") | keys[]) | flatten | unique | .[]" "$TOOLS_YAML")
+  while IFS= read -r key; do
+    [[ -z "$key" ]] && continue
+    sha=$(catalog_tool_field "$t" "sha256.$key")
+    cfile=$(catalog_tool_field "$t" "checksum_file.$key")
+    if [[ -z "$sha" && -z "$cfile" && -z "$scalar_sha" && -z "$scalar_cfile" ]]; then
+      bad "$t/$key: platform asset has no SHA-256/checksum_file"
+    fi
+  done <<< "$keys"
+done < <("$YQ" '.tools[] | select((.method == "github_release" or .method == "official_archive") and ((.asset | type == "!!map") or (.url | type == "!!map"))) | .name' "$TOOLS_YAML")
 
 # Package pins are only meaningful for the Python methods that honour them.
 while IFS= read -r t; do

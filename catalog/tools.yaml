@@ -1049,9 +1049,17 @@ tools:
     category: android
     tags: [mobile]
     gui: true
-    method: apt
-    apt: [scrcpy]
+    method: official_archive
+    repo: Genymobile/scrcpy
+    version: v5.0.1
+    asset:
+      linux_amd64: scrcpy-linux-x86_64-v5.0.1.tar.gz
+    sha256:
+      linux_amd64: 9f969d30cc574816077edecda65719c1c70b0aee1df1ba5fa00779ac07b8fd6e
     brew: [scrcpy]
+    bin: scrcpy
+    check: scrcpy --version
+    notes: Upstream Linux build (apt has no bookworm package). macOS uses Homebrew.
   - name: mobsf
     desc: Static/dynamic mobile analysis suite
     category: android

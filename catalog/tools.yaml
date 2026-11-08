@@ -1271,7 +1271,6 @@ tools:
     desc: Anthropic Claude Code CLI
     category: ai
     tags: [ai]
-    opt_in: true
     method: npm
     npm: "@anthropic-ai/claude-code"
     bin: claude
@@ -1279,7 +1278,6 @@ tools:
     desc: Open-source AI coding agent CLI
     category: ai
     tags: [ai]
-    opt_in: true
     method: npm
     npm: opencode-ai
     bin: opencode
@@ -1287,7 +1285,6 @@ tools:
     desc: AI pair programming in your terminal
     category: ai
     tags: [ai]
-    opt_in: true
     method: uv
     pypi: aider-chat
     bin: aider
@@ -1295,7 +1292,6 @@ tools:
     desc: CLI for large language models
     category: ai
     tags: [ai]
-    opt_in: true
     method: uv
     pypi: llm
   - name: shell-gpt

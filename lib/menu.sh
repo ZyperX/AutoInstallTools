@@ -295,23 +295,38 @@ menu_main() {
     fi
     if is_wsl; then
       choice=$(_menu_menu 'AutoInstallTools' 'Set up your web + mobile AppSec workstation' \
-        mobile 'Install Mobile AppSec tools' \
+        minimal 'Install core utilities & runtimes' \
         web 'Install Web AppSec tools' \
+        api 'Install API testing tools' \
+        mobile 'Install Mobile AppSec tools' \
+        code 'Install source-review (SAST/SCA) tools' \
+        vps 'Install headless recon server tools' \
+        ai 'Install AI coding assistants' \
         all 'Install All tools' \
         update 'Update existing tools' \
         wsl "$wsl_item" \
         quit 'Quit') || break
     else
       choice=$(_menu_menu 'AutoInstallTools' 'Set up your web + mobile AppSec workstation' \
-        mobile 'Install Mobile AppSec tools' \
+        minimal 'Install core utilities & runtimes' \
         web 'Install Web AppSec tools' \
+        api 'Install API testing tools' \
+        mobile 'Install Mobile AppSec tools' \
+        code 'Install source-review (SAST/SCA) tools' \
+        vps 'Install headless recon server tools' \
+        ai 'Install AI coding assistants' \
         all 'Install All tools' \
         update 'Update existing tools' \
         quit 'Quit') || break
     fi
     case "$choice" in
-      mobile) _menu_profile mobile 'Mobile AppSec tools' ;;
+      minimal) _menu_profile minimal 'Core utilities & runtimes' ;;
       web) _menu_profile web 'Web AppSec tools' ;;
+      api) _menu_profile api 'API testing tools' ;;
+      mobile) _menu_profile mobile 'Mobile AppSec tools' ;;
+      code) _menu_profile code 'Source-review (SAST/SCA) tools' ;;
+      vps) _menu_profile vps 'Headless recon server tools' ;;
+      ai) _menu_profile ai 'AI coding assistants' ;;
       all)
         if _menu_yesno 'Install all tools' 'Install every default tool (profiles all)?
 Some need sudo for system packages; GUI tools are skipped on a VPS.'; then
